@@ -1,0 +1,680 @@
+8th iteration code
+
+this has same features as before,but just added units for paramters and then filtering the dataset dynamically so that 
+it filters up to the latest data avaible
+
+var pakistanDistricts = ee.FeatureCollection('projects/ee-mustafaasghar66/assets/gadm36_PAK_3');
+
+var dataFC=ee.FeatureCollection('projects/ee-mustafaasghar66/assets/Pakistan_Climate_2014_2024');
+
+
+var era5 = ee.ImageCollection("ECMWF/ERA5_LAND/MONTHLY_AGGR")
+  .select(["total_precipitation_sum", "temperature_2m"])
+  .filterDate("1984-01-01", ee.Date(Date.now())); // Up to today
+
+var loadingLabel = null;
+var loadingPanel = null;
+var districtLabel = null;
+var districtInfoPanel = null;
+var districtInfoTitle=null;
+var panelDistrictWidgets= [];
+var keepRotating=true;
+var districtLoadingSymbol=null;
+
+
+
+
+// gets latest 3 months from era5
+var latestImages = era5.sort('system:time_start', false).limit(3);
+var latestImagesList = latestImages.toList(3);
+
+// 
+function formatDate(image) {
+  var date = ee.Date(image.get('system:time_start'));
+  return date.format('YYYY-MM');
+}
+
+
+function showLoadingIndicator(message) {
+  print("called showloadingindicator");
+  hideLoadingIndicator(); 
+  hideDistrictLoadingIndicator();
+  loadingPanel = ui.Panel({
+    style: {
+      backgroundColor: '#e8f4fd',
+      border: '2px solid #3498db',
+      margin: '10px 0',
+      padding: '15px'
+    }
+  });
+  
+  var loadingTitle = ui.Label({
+    value: '⏳ Loading Data...',
+    style: {
+      fontSize: '16px',
+      fontWeight: 'bold',
+      color: '#2980b9',
+      margin: '0 0 5px 0'
+    }
+  });
+  
+  loadingLabel = ui.Label({
+    value: message || 'Please wait while data is being processed...',
+    style: {
+      fontSize: '14px',
+      color: '#34495e',
+      fontStyle: 'italic',
+      margin: '0 0 10px 0'
+    }
+  });
+  
+  // our rotating symbol for loading
+  var loadingSymbol = ui.Label({
+    value: '⟳',
+    style: {
+      fontSize: '24px',
+      color: '#3498db',
+      textAlign: 'center',
+      fontWeight: 'bold'
+    }
+  });
+  
+  loadingPanel.add(loadingTitle);
+  loadingPanel.add(loadingLabel);
+  loadingPanel.add(loadingSymbol);
+  
+  
+  var insertIndex = 0;
+  var children = panel.widgets();
+  for (var i = 0; i < children.length(); i++) {
+    if (children.get(i) === visualizeButton) {
+      insertIndex = i + 1;
+      break;
+    }
+  }
+  panel.insert(insertIndex, loadingPanel);
+  
+  //the loading symbols will now rotate
+  var rotationSymbols=['🌍', '🌎', '🌏'];
+  var currentSymbolIndex = 0;
+  
+  // rotation animation
+  var rotateSymbol = function() {
+    if (loadingSymbol && loadingPanel) {
+      currentSymbolIndex = (currentSymbolIndex + 1) % rotationSymbols.length;
+      loadingSymbol.setValue(rotationSymbols[currentSymbolIndex]);
+      
+      
+      ui.util.setTimeout(rotateSymbol, 300); // rotates every 300ms
+    }
+  };
+  
+  // starts the animation
+  ui.util.setTimeout(rotateSymbol, 300);
+}
+
+
+function updateLoadingIndicator(message) {
+  if (loadingLabel) {
+    loadingLabel.setValue(message);
+    
+  }
+}
+
+function hideLoadingIndicator() {
+  if (loadingPanel) {
+    panel.remove(loadingPanel);
+    loadingPanel = null;
+    loadingLabel = null;
+  }
+}
+
+//gives month name from image
+function getMonthNameFromImage(image) {
+  var date = ee.Date(image.get('system:time_start'));
+  var month = date.get('month');
+  var monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
+                   'July', 'August', 'September', 'October', 'November', 'December'];
+  return ee.List(monthNames).get(month.subtract(1));
+}
+
+
+var month1 = getMonthNameFromImage(ee.Image(latestImagesList.get(0)));
+var month2 = getMonthNameFromImage(ee.Image(latestImagesList.get(1)));
+var month3 = getMonthNameFromImage(ee.Image(latestImagesList.get(2)));
+var year=formatDate(ee.Image(latestImagesList.get(0))).split('-').get(0);
+print(year)
+
+// this will give us month name from the date string
+function getMonthName(dateString) {
+  var monthNames = ['jan', 'feb', 'mar', 'apr', 'may', 'jun',
+                   'jul', 'aug', 'sep', 'oct', 'nov', 'dec'];
+  var month = parseInt(dateString.split('-')[1]) - 1;
+  return monthNames[month];
+}
+
+// Create single legend that will be reused
+var legend = ui.Panel({
+  style: {
+    position: 'bottom-left',
+    padding: '8px 15px'
+  }
+});
+
+var legendTitle = ui.Label({
+  value: 'Difference from Historical Average',
+  style: {
+    fontWeight: 'bold',
+    fontSize: '16px',
+    margin: '0 0 4px 0',
+    padding: '0'
+  }
+});
+
+legend.add(legendTitle);
+
+var makeColorBarParams = function(palette) {
+  return {
+    bbox: [0, 0, 1, 0.1],
+    dimensions: '100x10',
+    format: 'png',
+    min: 0,
+    max: 1,
+    palette: palette,
+  };
+};
+
+var colorBar = ui.Thumbnail({
+  image: ee.Image.pixelLonLat().select(0),
+  params: makeColorBarParams( ['0000ff', '00ff00', 'ffff00', 'ff0000']),
+  style: {stretch: 'horizontal', margin: '0px 8px', maxHeight: '24px'},
+});
+
+var legendLabels = ui.Panel({
+  widgets: [
+    ui.Label('Less than average',{margin:'4px 8px'}),
+    ui.Label('Near average', {margin: '4px 8px'}),
+    ui.Label('Greater than average', {margin: '4px 8px'})
+  ],
+  layout: ui.Panel.Layout.flow('horizontal')
+});
+
+legend.add(colorBar);
+legend.add(legendLabels);
+
+
+Map.add(legend);
+
+
+function clearPanel(){
+  for (var i=0; i<panelDistrictWidgets.length;i++){
+    panel.remove(panelDistrictWidgets[i]);
+    
+  }
+  print("cleared the district info from ui panel!");
+  panelDistrictWidgets=[];
+}
+function updateVisualization(selectedIndex, parameter) {
+   var unit = parameter === 'precipitation' ? 'mm' : '°C';
+  Map.unlisten(); //this to remove the previous handlers cuz when i was clicking on a district,then all 3 months 
+  //values were being shown because the previous onclick handlers were active,so now i do this to get rid of them
+  // Clear previous layers
+  Map.layers().reset();
+  
+  showLoadingIndicator("Please wait while we laod your data,do not press Calculate Anomalies again.");
+  
+  //gives the selected image
+  var selectedImage = ee.Image(latestImagesList.get(selectedIndex));
+  var selectedDate = formatDate(selectedImage);
+  
+
+  var monthName = getMonthName(selectedDate.getInfo());
+  var parameterColumn = parameter === 'precipitation' ? 
+    ee.String('rainfall_').cat(monthName) : 
+    ee.String('temperature_').cat(monthName);
+  
+  // to calculate current vs historical difference for each district
+  var calculateDistrictDifference = function(district) {
+    var districtName = district.get('NAME_3');
+    var districtGeometry = district.geometry();
+    
+    // Get current month value from ERA5
+    var clippedImage = selectedImage.clip(districtGeometry);
+    var bandName = parameter === 'precipitation' ? 'total_precipitation_sum' : 'temperature_2m';
+    
+    var currentValue = clippedImage.select(bandName).reduceRegion({
+      reducer: ee.Reducer.mean(),
+      geometry: districtGeometry,
+      scale: 11132,
+      maxPixels: 1e8,
+      tileScale: 4
+    }).get(bandName);
+    
+    // var unit=null;
+    if (parameter === 'precipitation') {
+      currentValue = ee.Number(currentValue).multiply(1000);
+      // unit="mm";
+    } else if (parameter == 'temperature') {
+      currentValue = ee.Number(currentValue).subtract(273.15); //to convert to celsius
+      // unit="C";
+    }
+    
+    
+    var historicalData = dataFC.filter(ee.Filter.eq('district_name', districtName)).first();
+    var historicalValue = ee.Number(historicalData.get(parameterColumn));
+    
+    
+    var difference = ee.Number(currentValue).subtract(ee.Number(historicalValue));
+    
+    
+    return district.set({
+      'current_value': currentValue,
+      'historical_value': historicalValue,
+      'difference': difference,
+      'district_name': districtName
+    });
+  };
+  
+  
+  var totalDistricts = pakistanDistricts.size();
+  var batchSize = 5; // processing in batches of 5 cuz processing all at once was crashing the browser
+  
+  
+  totalDistricts.evaluate(function(total) {
+    var numBatches = Math.ceil(total / batchSize);
+    var processedDistricts = []; //stores all processed districts
+    var currentBatch = 0;
+    
+    updateLoadingIndicator("Please wait,loading data takes some time,do not press Calculate Anomalies again.");
+    
+    
+    function processBatch(batchIndex) {
+      if (batchIndex >= numBatches) {
+        // if all batches are processed then we create the visualization
+        finalizeVisualization();
+        return;
+      }
+      
+      currentBatch = batchIndex + 1;
+      var startIndex = batchIndex * batchSize;
+      
+      updateLoadingIndicator("Please wait,loading data takes some time,do not press Calculate Anomalies again.");
+      
+      
+      var districtsList = pakistanDistricts.toList(total);
+      var batchList = districtsList.slice(startIndex, startIndex + batchSize);
+      var currentBatchDistricts = ee.FeatureCollection(batchList);//the current batch of districts
+      
+      print("reached till here!");
+    
+      var batchProcessed = currentBatchDistricts.map(calculateDistrictDifference);
+      
+      
+      currentBatchDistricts.size().evaluate(function(batchSizeActual) {
+        print("Batch " + currentBatch + " actual size: " + batchSizeActual);
+        
+        if (batchSizeActual === 0) {
+          print("Batch " + currentBatch + " is empty, skipping...");
+          setTimeout(function() {
+            processBatch(batchIndex + 1);
+          }, 100);
+          return;
+        }
+        
+        batchProcessed.evaluate(function(batchResult) {
+          print("Batch " + currentBatch + " evaluation result:", batchResult ? 'Success' : 'Failed');
+          
+          
+          if (batchResult && batchResult.features) {
+            // storing here for later use
+            processedDistricts = processedDistricts.concat(batchResult.features);
+            
+            print("Batch " + currentBatch + " completed: " + batchResult.features.length + " districts processed");
+            print("Total districts accumulated so far: " + processedDistricts.length);
+            
+            
+            if (batchResult.features.length > 0) {
+              var firstDistrict = batchResult.features[0];
+              print('Sample district from batch:', firstDistrict.properties.district_name);
+              print('Current value:', firstDistrict.properties.current_value);
+              print('Historical value:', firstDistrict.properties.historical_value);
+              print('Difference:', firstDistrict.properties.difference);
+            }
+          } else {
+            print('No features in batch result for batch', currentBatch);
+          }
+          
+          ui.util.setTimeout(function() {
+            processBatch(batchIndex + 1);
+          }, 100); // 100ms delay between batches
+          
+        }, function(error) {
+          print('Error processing batch ' + currentBatch + ':', error);
+  
+          setTimeout(function() {
+            processBatch(batchIndex + 1);
+          }, 100);
+        });
+        
+      }, function(error) {
+        print('Error getting batch size for batch ' + currentBatch + ':', error);
+        setTimeout(function() {
+          processBatch(batchIndex + 1);
+        }, 100);
+      });
+    }
+    
+  
+    function finalizeVisualization() {
+      updateLoadingIndicator("Creating visualization...");
+      
+
+      var featureList = [];
+      
+      // Convert JavaScript objects back to EE Features
+      for (var i = 0; i < processedDistricts.length; i++) {
+        var district = processedDistricts[i];
+        if (district && district.properties) {
+          var feature = ee.Feature(district.geometry, district.properties);
+          featureList.push(feature);
+        }
+      }
+      
+      var allProcessedDistricts = ee.FeatureCollection(featureList);
+      
+      var differences = [];
+      for (var j = 0; j < processedDistricts.length; j++) {
+        if (processedDistricts[j] && processedDistricts[j].properties && 
+            processedDistricts[j].properties.difference !== null && 
+            processedDistricts[j].properties.difference !== undefined) {
+          differences.push(processedDistricts[j].properties.difference);
+        }
+      }
+      
+      if (differences.length === 0) {
+        console.error('No valid difference values found');
+        hideLoadingIndicator();
+        return;
+      }
+      
+      var minVal = Math.min.apply(Math, differences);
+      var maxVal = Math.max.apply(Math, differences);
+      
+      createVisualizationLayer(allProcessedDistricts, minVal, maxVal, parameter, monthName);
+      
+
+      // added the click handler
+      addClickHandler(allProcessedDistricts, parameter, monthName,unit);
+      
+      hideLoadingIndicator();
+    }
+    
+    // starting processing from the first batch
+    processBatch(0);
+  });
+}
+
+function createVisualizationLayer(districtsWithDifferences, minDiff, maxDiff, parameter, monthName) {
+  print("my min and max values are:",minDiff,maxDiff);
+  var maxAbsDiff=Math.max(Math.abs(minDiff),Math.abs(maxDiff));//am doing this so that color consistency can be maintained
+  //since if im using blue to green to red,and green supposed to represent values that are equal to historical 
+  //average,and suppose values range from +5 to +25,so like blue was supposed to represent less than historical average
+  //but it will instead represetn +5 (not -5 ) and hence whole color scheme becomes wrong,so am using different approach
+  
+  // blank image on which to paint
+  var blank = ee.Image(0).mask(0);
+  
+
+  var paintedImage = blank.paint({
+    featureCollection: districtsWithDifferences,
+    color: 'difference' //usingthe "difference" property to paint
+  });
+  
+  var visParams = {
+    min: -maxAbsDiff,
+    max: maxAbsDiff,
+    palette: ['0000ff', '00ff00', 'ffff00', 'ff0000'] 
+  };
+  
+  
+  // Add to map
+  Map.addLayer(paintedImage, visParams, 
+    parameter.charAt(0).toUpperCase() + parameter.slice(1) + ' - ' + monthName);
+  
+  Map.addLayer(pakistanDistricts, {color: 'gray', fillOpacity: 0, opacity: 0.1,strokeWidth:1}, 'District Boundaries');
+}
+
+
+function showDistrictLoadingIndicator(message){
+  hideDistrictLoadingIndicator();
+  keepRotating=true;
+  districtInfoPanel = ui.Panel({
+    style: {
+      backgroundColor: '#e8f4fd',
+      border: '2px solid #3498db',
+      margin: '10px 0',
+      padding: '15px'
+    }
+  });
+  districtInfoTitle = ui.Label({
+    value: '⏳ Loading Data...',
+    style: {
+      fontSize: '16px',
+      fontWeight: 'bold',
+      color: '#2980b9',
+      margin: '0 0 5px 0'
+    }
+  });
+  districtLabel = ui.Label({
+    value: message || 'loading data for district',
+    style: {
+      fontSize: '14px',
+      color: '#34495e',
+      fontStyle: 'italic',
+      margin: '0 0 10px 0'
+    }
+  });
+
+
+  districtLoadingSymbol = ui.Label({
+    value: '⟳',
+    style: {
+      fontSize: '24px',
+      color: '#3498db',
+      textAlign: 'center',
+      fontWeight: 'bold'
+    }
+  });
+
+
+  districtInfoPanel.add(districtInfoTitle);
+  districtInfoPanel.add(districtLabel);
+  districtInfoPanel.add(districtLoadingSymbol);
+  panel.add(districtInfoPanel);
+  panelDistrictWidgets.push(districtInfoPanel);
+
+  //the loading symbols will now rotate
+  var rotationSymbols=['🌍', '🌎', '🌏'];
+  var currentSymbolIndex = 0;
+  
+  // rotation animation
+  var rotateSymbol = function() {
+    if (districtLoadingSymbol && districtInfoPanel && keepRotating===true) {
+      currentSymbolIndex = (currentSymbolIndex + 1) % rotationSymbols.length;
+      districtLoadingSymbol.setValue(rotationSymbols[currentSymbolIndex]);
+      
+      
+      ui.util.setTimeout(rotateSymbol, 300); // rotates every 300ms
+    }
+  };
+  
+  // starts the animation
+  ui.util.setTimeout(rotateSymbol, 300);
+}
+
+function updateDistrictLoadingIndicator(message){
+  if (districtLabel) {
+    keepRotating=false;
+    districtLabel.setValue(message);
+    districtInfoTitle.setValue("Data Loaded!");
+    districtLoadingSymbol.setValue('✅'); 
+  }
+}
+
+function hideDistrictLoadingIndicator() {
+  if (districtInfoPanel) {
+    panel.remove(districtInfoPanel);
+    districtInfoPanel = null;
+    districtLabel = null;
+  }
+}
+
+
+function addClickHandler(districtsWithDifferences, parameter, monthName,unit) {
+  clearPanel();
+  
+  Map.onClick(function(coords) {
+    var point = ee.Geometry.Point([coords.lon, coords.lat]);
+    var clickedDistrict = districtsWithDifferences.filterBounds(point).first();
+    showDistrictLoadingIndicator();
+    clickedDistrict.evaluate(function(district) {
+      if (district) {
+        var info = 'District: ' + district.properties.district_name + ', ' + '\n' +
+                  'Current ' + parameter + ' for ' + monthName + ': ' + 
+                  (district.properties.current_value ? 
+                   district.properties.current_value.toFixed(2) + unit : 'N/A') + ', ' + '\n' +
+                  'Historical average: ' + 
+                  (district.properties.historical_value ? 
+                   district.properties.historical_value.toFixed(2) + unit : 'N/A') + ', '  + '\n' +
+                  'Difference: ' + 
+                  (district.properties.difference ? 
+                   district.properties.difference.toFixed(2) + unit : 'N/A');
+        // panel.add(ui.Label(info));
+        // districtLabel(info)
+        // panel.add(districtInfoPanel);
+       
+        
+        print(info);
+        updateDistrictLoadingIndicator(info);
+      }
+    });
+  });
+}
+
+
+var panel = ui.Panel({
+  style: {width: '300px', padding: '20px'}
+});
+
+var title = ui.Label({
+  value: 'District-Level Temperature and Rainfall Anomalies in Pakistan: Near Real-Time Monitoring',
+  style: {fontSize: '24px', fontWeight: 'bold', margin: '0 0 20px 0'}
+});
+panel.add(title);
+
+var instructions = ui.Label({
+  value: 'Instructions:\n' +
+         '• Select a weather parameter and month from dropdowns\n' +
+         '• Click on Calculate Anomalies button \n' +
+         '• After a while,districts will be colored based on the difference from historical average  \n' +
+         '• Blue districts: Less than historical average \n' +
+         '• Green districts: close to historical average\n' +
+         '• Red districts: far from historical average\n' +
+         '• After the districts are colored,click on a district to view additional information about it ',
+  style: {
+    fontSize: '12px',
+    margin: '0 0 20px 0',
+    whiteSpace: 'pre-line'
+  }
+});
+panel.add(instructions);
+
+var parameterLabel = ui.Label('Select Weather Parameter:',{fontWeight:'bold'});
+panel.add(parameterLabel);
+
+var parameterSelect = ui.Select({
+  items: ['precipitation', 'temperature'],
+  value: 'precipitation',
+  style: {
+    margin: '10px 0 0 0',
+    width: '130px',
+    fontWeight: 'bold',            
+    border: '2px solid black',     
+    backgroundColor: '#f0f0f0',    
+    color: 'black'                 
+  }
+});
+panel.add(parameterSelect);
+
+
+
+var monthLabel = ui.Label('Select Month:', {margin: '10px 0 5px 0',fontWeight:'bold'});
+panel.add(monthLabel);
+
+var monthSelect = ui.Select({
+  items: [
+    {label: 'Loading...', value: '0'},
+    {label: 'Loading...', value: '1'},
+    {label: 'Loading...', value: '2'}
+  ],
+  value: null,
+  style:  {
+    margin: '10px 0 0 0',
+    width: '130px',
+    fontWeight: 'bold',            
+    border: '2px solid black',    
+    backgroundColor: '#f0f0f0',   
+    color: 'black'                
+  }
+});
+panel.add(monthSelect);
+
+
+
+month1.evaluate(function(m1) {
+  month2.evaluate(function(m2) {
+    month3.evaluate(function(m3) {
+      year.evaluate(function(year) {
+        var monthOptions = [
+          {label: m1 + ' (Latest) ' + year, value: '0'},
+          {label: m2 + " " + year, value: '1'},
+          {label: m3 + " " + year, value: '2'}
+        ];
+        
+        monthSelect.items().reset(monthOptions);
+        
+        print("added month names to drop down!!!");
+      });
+    });
+  });
+});
+var visualizeButton = ui.Button({
+  label: 'Calculate Anomalies',
+  onClick: function() {
+    var parameter = parameterSelect.getValue();
+    var monthIndex = monthSelect.getValue();
+    if (monthIndex !== null) {
+      updateVisualization(parseInt(monthIndex), parameter);
+    }
+  },
+  style: 
+     {
+    margin: '10px 0 0 0',
+    width: '130px',
+    fontWeight: 'bold',            
+    border: '2px solid black',     
+    backgroundColor: '#f0f0f0',    
+    color: 'black'                 
+  }
+});
+panel.add(visualizeButton);
+
+
+ui.root.add(panel);
+
+
+
+// center map on Pakistan
+Map.setCenter(69.3451, 30.3753, 6);
+
+Map.addLayer(pakistanDistricts, {color: 'gray', fillOpacity: 0, opacity: 0.1,strokeWidth:1}, 'Pakistan Districts');

@@ -1,0 +1,1970 @@
+
+
+
+
+
+// Load the Pakistan districts shapefile (replace with your actual asset path)
+var pakistanDistricts = ee.FeatureCollection('projects/ee-mustafaasghar66/assets/gadm36_PAK_3');
+
+// Load ERA5-Land Monthly dataset - optimized date range
+var era5 = ee.ImageCollection("ECMWF/ERA5_LAND/MONTHLY_AGGR")
+  .select(["total_precipitation_sum", "temperature_2m"])
+  .filterDate("1984-01-01", "2025-12-31");
+
+// Global variables
+var currentDistrict = null;
+var currentDistrictGeometry = null;
+var currentDistrictName = null;
+var chart_panel_widgets = []; // to keep track of the charts added to ui panel
+var panel_anomaly_labels = []; // to keep track of anomaly labels,so i can remove them later
+
+// NEW: Data storage objects
+var rainfallRawData = {}; // eg: rainfallRawData[districtName][year][monthName] = rainfallValue
+var rainfallStats = {}; // eg: rainfallStats[districtName] = {monthlyAverages: {}, totalDataPoints: 0, yearsProcessed: []}
+
+var TemperatureRawData = {}; // eg: TemperatureRawData[districtName][year][monthName] = TemperatureValue
+var TemperatureStats = {}; // eg: TemperatureStats[districtName] = {monthlyAverages: {}, totalDataPoints: 0, yearsProcessed: []}
+
+var anomalyTrendData = {}; // eg: anomalyTrendData[districtName][year] = anomalyCount
+var anomalyTempTrendData={}
+var selectedStartYear=null;
+var selectedEndYear=null;
+
+// NEW: Baseline statistics for anomaly calculations (1991-2020)
+var rainfallBaselineStats = {}; // eg: rainfallBaselineStats[districtName] = {monthlyAverages: {}}
+var temperatureBaselineStats = {}; // eg: temperatureBaselineStats[districtName] = {monthlyAverages: {}}
+
+// Flag to track if data is being loaded
+var isLoadingData = false;
+
+// Loading indicator variables
+var loadingLabel = null;
+var loadingPanel = null;
+
+function showLoadingIndicator(message) {
+  hideLoadingIndicator(); // Remove any existing loading indicator
+  
+  loadingPanel = ui.Panel({
+    style: {
+      backgroundColor: '#e8f4fd',
+      border: '2px solid #3498db',
+      margin: '10px 0',
+      padding: '15px'
+    }
+  });
+  
+  var loadingTitle = ui.Label({
+    value: '⏳ Loading Data...',
+    style: {
+      fontSize: '16px',
+      fontWeight: 'bold',
+      color: '#2980b9',
+      margin: '0 0 5px 0'
+    }
+  });
+  
+  loadingLabel = ui.Label({
+    value: message || 'Please wait while data is being processed...',
+    style: {
+      fontSize: '14px',
+      color: '#34495e',
+      fontStyle: 'italic',
+      margin: '0 0 10px 0'
+    }
+  });
+  
+  // Create rotating loading symbol
+  var loadingSymbol = ui.Label({
+    value: '⟳',
+    style: {
+      fontSize: '24px',
+      color: '#3498db',
+      textAlign: 'center',
+      fontWeight: 'bold'
+    }
+  });
+  
+  loadingPanel.add(loadingTitle);
+  loadingPanel.add(loadingLabel);
+  loadingPanel.add(loadingSymbol);
+  
+  // Add loading panel after the year dropdown
+  var insertIndex = 0;
+  var children = panel.widgets();
+  for (var i = 0; i < children.length(); i++) {
+    if (children.get(i) === generateButton) {
+      insertIndex = i + 1;
+      break;
+    }
+  }
+  panel.insert(insertIndex, loadingPanel);
+  
+  // Animate the loading symbol
+  var rotationSymbols=['🌍', '🌎', '🌏'];
+  var currentSymbolIndex = 0;
+  
+  // Create rotation animation using setTimeout
+  var rotateSymbol = function() {
+    if (loadingSymbol && loadingPanel) { // Check if still exists
+      currentSymbolIndex = (currentSymbolIndex + 1) % rotationSymbols.length;
+      loadingSymbol.setValue(rotationSymbols[currentSymbolIndex]);
+      
+      // Continue animation
+      ui.util.setTimeout(rotateSymbol, 300); // Rotate every 300ms
+    }
+  };
+  
+  // Start the rotation animation
+  ui.util.setTimeout(rotateSymbol, 300);
+}function updateLoadingIndicator(message) {
+  if (loadingLabel) {
+    loadingLabel.setValue(message);
+  }
+}
+
+function hideLoadingIndicator() {
+  if (loadingPanel) {
+    panel.remove(loadingPanel);
+    loadingPanel = null;
+    loadingLabel = null;
+  }
+}
+
+
+
+
+
+
+
+
+
+
+// Initialize data structures for a district
+function initializeDistrictData(districtName) {
+  if (!rainfallRawData[districtName]) {
+    rainfallRawData[districtName] = {};
+    rainfallStats[districtName] = {
+      monthlyAverages: {},
+      totalDataPoints: 0,
+      yearsProcessed: [],
+      yearRange: {start: null, end: null},
+      lastUpdated: new Date().toISOString()
+    };
+  }
+  
+  if (!TemperatureRawData[districtName]) {
+    TemperatureRawData[districtName] = {};
+    TemperatureStats[districtName] = {
+      monthlyAverages: {},
+      totalDataPoints: 0,
+      yearsProcessed: [],
+      yearRange: {start: null, end: null},
+      lastUpdated: new Date().toISOString()
+    };
+  }
+}
+
+// NEW: Function to load all data for a district (without creating charts)
+function loadAllDistrictData(districtName, districtGeometry, callback) {
+  print('Loading all rainfall and temperature data for ' + districtName + '...');
+  isLoadingData = true;
+  
+  // Show loading indicator
+  // showLoadingIndicator('Loading rainfall data for ' + districtName + '...\nThis may take a few moments.');
+  
+  // Disable UI elements during loading
+  // yearDropdown.setDisabled(true);
+  // startYearDropdown.setDisabled(true)
+  districtDropdown.setDisabled(true);
+  
+  // Initialize data structure for this district
+  initializeDistrictData(districtName);
+  
+  // MODIFIED: Include baseline years (1991-2020) along with selected year range for anomaly calculations
+  var years = [];
+  var baselineYears = [];
+  
+  // Generate baseline years (1991-2020)
+  for (var year = 1991; year <= 2020; year++) {
+    baselineYears.push(year);
+  }
+  
+  // Generate selected year range
+  for (var year = parseInt(selectedStartYear); year <= parseInt(selectedEndYear); year++) {
+    years.push(year);
+  }
+  
+  // Combine and deduplicate years
+  var allYears = baselineYears.concat(years);
+  var uniqueYears = allYears.filter(function(year, index) {
+    return allYears.indexOf(year) === index;
+  }).sort();
+  
+  print('Loading data for years: ' + uniqueYears.join(', '));
+  print('Baseline period: 1991-2020');
+  print('Analysis period: ' + selectedStartYear + '-' + selectedEndYear);
+  
+  years = uniqueYears; // Use the combined unique years
+  var completedYears = 0;
+  
+  years.forEach(function(year) {
+    loadYearData(year, districtName, districtGeometry, function() {
+      completedYears++;
+      print('Loaded data for year ' + year + ' (' + completedYears + '/' + years.length + ')');
+      
+      // Update loading indicator with progress
+      var progressMessage = 'Loading Rainfall and Temperature data for ' + districtName + '...\n' +
+                           'Progress: ' + completedYears + '/' + years.length + ' years completed\n' +
+                           'Currently processing: ' + year;
+      // updateLoadingIndicator(progressMessage);
+      
+      if (completedYears === years.length) {
+        print('All data loaded for ' + districtName + '!');
+        // updateLoadingIndicator('Calculating statistics...');
+        
+        calculateRainfallStats(districtName,parseInt(selectedStartYear),parseInt(selectedEndYear));
+        calculateTemperatureStats(districtName,parseInt(selectedStartYear),parseInt(selectedEndYear))
+        isLoadingData = false;
+        
+        // Hide loading indicator
+        // hideLoadingIndicator();
+        
+        // Re-enable UI elements
+        // yearDropdown.setDisabled(false);
+        districtDropdown.setDisabled(false);
+        
+        // Show success message
+        // var successPanel = ui.Panel({
+        //   style: {
+        //     backgroundColor: '#d5edda',
+        //     border: '2px solid #28a745',
+        //     margin: '10px 0',
+        //     padding: '10px'
+        //   }
+        // });
+        
+        var successLabel = ui.Label({
+          value: '✅ Data loaded successfully for ' + districtName + '!\nYou can now select a year or generate average chart.',
+          style: {
+            fontSize: '14px',
+            color: '#155724',
+            fontWeight: 'bold'
+          }
+        });
+        
+        // successPanel.add(successLabel);
+        
+        // Add success panel and remove it after 5 seconds
+        var insertIndex = 0;
+        var children = panel.widgets();
+        for (var i = 0; i < children.length(); i++) {
+          if (children.get(i) === endYearDropdown) {
+            insertIndex = i + 1;
+            break;
+          }
+        }
+        // panel.insert(insertIndex, successPanel);
+        
+        // Remove success message after 5 seconds
+        // ui.util.setTimeout(function() {
+        //   panel.remove(successPanel);
+        // }, 5000);
+        
+        if (callback) callback();
+      }
+    });
+  });
+}
+
+// NEW: Function to load data for a specific year (without creating chart)
+function loadYearData(year, districtName, districtGeometry, callback) {
+  // Initialize year data if not exists
+  if (!rainfallRawData[districtName] || !TemperatureRawData[districtName]) {
+    initializeDistrictData(districtName);
+  }
+  if (!rainfallRawData[districtName][year]) {
+    rainfallRawData[districtName][year] = {};
+  }
+  if (!TemperatureRawData[districtName][year]) {
+    TemperatureRawData[districtName][year] = {};
+  }
+  
+  var startDate = ee.Date.fromYMD(year, 1, 1);
+  var endDate = ee.Date.fromYMD(year, 12, 31);
+
+  if (year === 2025) {
+    var currentDate = ee.Date(Date.now());
+    endDate = ee.Algorithms.If(
+      endDate.millis().lte(currentDate.millis()),
+      endDate,
+      currentDate
+    );
+    endDate = ee.Date(endDate);
+  }
+
+  var yearData = era5.filterDate(startDate, endDate);
+  
+  yearData.aggregate_array('system:time_start')
+    .map(function(timestamp) {
+      return ee.Date(timestamp).get('month');
+    }).distinct().sort().evaluate(function(monthsList) {
+      var monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+                       'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      var monthsToProcess = monthsList.length;
+      var monthsProcessed = 0;
+      
+      if (monthsToProcess === 0) {
+        print('No data available for year ' + year);
+        if (callback) callback();
+        return;
+      }
+      
+      monthsList.forEach(function(monthNum) {
+        var monthStart = ee.Date.fromYMD(year, monthNum, 1);
+        var monthEnd = monthStart.advance(1, 'month');
+
+        var monthImage = yearData.filterDate(monthStart, monthEnd).first();
+        var clippedImage = monthImage.clip(districtGeometry);
+
+        var meanRainfall = clippedImage.reduceRegion({
+          reducer: ee.Reducer.mean(),
+          geometry: districtGeometry,
+          scale: 11132,
+          maxPixels: 1e8,
+          // bestEffort: true,
+          tileScale: 4
+        });
+        
+        var meanTemperature = clippedImage.reduceRegion({
+          reducer: ee.Reducer.mean(),
+          geometry: districtGeometry,
+          scale: 11132,
+          maxPixels: 1e8,
+          // bestEffort: true,
+          tileScale: 4
+        });
+
+        var rainfallValue = ee.Number(meanRainfall.get('total_precipitation_sum')).multiply(1000);
+        var temperatureValue = ee.Number(meanTemperature.get('temperature_2m')).subtract(273.15);
+        var monthName = monthNames[monthNum - 1];
+        
+        // Store rainfall data
+        rainfallValue.evaluate(function(rainfall) {
+          if (rainfall !== null && rainfall !== undefined) {
+            rainfallRawData[districtName][year][monthName] = rainfall;
+            
+            // Add to years processed if not already there
+            if (rainfallStats[districtName].yearsProcessed.indexOf(year) === -1) {
+              rainfallStats[districtName].yearsProcessed.push(year);
+            }
+          }
+          
+          // Store temperature data
+          temperatureValue.evaluate(function(temperature) {
+            if (temperature !== null && temperature !== undefined) {
+              TemperatureRawData[districtName][year][monthName] = temperature;
+              
+              // Add to years processed if not already there
+              if (TemperatureStats[districtName].yearsProcessed.indexOf(year) === -1) {
+                TemperatureStats[districtName].yearsProcessed.push(year);
+              }
+            }
+            
+            monthsProcessed++;
+            if (monthsProcessed === monthsToProcess && callback) {
+              callback();
+            }
+          }, function(error) {
+            print('Error getting temperature for ' + monthName + ' ' + year + ':', error);
+            monthsProcessed++;
+            if (monthsProcessed === monthsToProcess && callback) {
+              callback();
+            }
+          });
+          
+        }, function(error) {
+          print('Error getting rainfall for ' + monthName + ' ' + year + ':', error);
+          
+          // Still try to get temperature even if rainfall failed
+          temperatureValue.evaluate(function(temperature) {
+            if (temperature !== null && temperature !== undefined) {
+              TemperatureRawData[districtName][year][monthName] = temperature;
+              
+              if (TemperatureStats[districtName].yearsProcessed.indexOf(year) === -1) {
+                TemperatureStats[districtName].yearsProcessed.push(year);
+              }
+            }
+            
+            monthsProcessed++;
+            if (monthsProcessed === monthsToProcess && callback) {
+              callback();
+            }
+          }, function(tempError) {
+            print('Error getting temperature for ' + monthName + ' ' + year + ':', tempError);
+            monthsProcessed++;
+            if (monthsProcessed === monthsToProcess && callback) {
+              callback();
+            }
+          });
+        });
+      });
+    }, function(error) {
+      print('Error getting months for year ' + year + ':', error);
+      if (callback) callback();
+    });
+}
+// NEW: Calculate baseline temperature averages (1991-2020) for anomaly calculations
+function calculateTemperatureBaselineStats(districtName) {
+  print('Calculating Temperature baseline statistics for ' + districtName + ' (1991-2020)...');
+  
+  var monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+                   'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  
+  var monthlyAverages = {};
+  var totalDataPoints = 0;
+  var baselineYears = [];
+  
+  // Generate list of baseline years (1991-2020)
+  for (var year = 1991; year <= 2020; year++) {
+    baselineYears.push(year);
+  }
+  
+  monthNames.forEach(function(monthName) {
+    var monthValues = [];
+    
+    // Only use baseline years (1991-2020)
+    baselineYears.forEach(function(year) {
+      if (TemperatureRawData[districtName][year] && 
+          TemperatureRawData[districtName][year][monthName] !== undefined) {
+        monthValues.push(TemperatureRawData[districtName][year][monthName]);
+        totalDataPoints++;
+      }
+    });
+    
+    if (monthValues.length > 0) {
+      var sum = monthValues.reduce(function(a, b) { return a + b; }, 0);
+      monthlyAverages[monthName] = sum / monthValues.length;
+    } else {
+      monthlyAverages[monthName] = 0;
+    }
+  });
+  
+  // Initialize baseline stats if not exists
+  if (!temperatureBaselineStats[districtName]) {
+    temperatureBaselineStats[districtName] = {};
+  }
+  
+  // Store baseline stats
+  temperatureBaselineStats[districtName].monthlyAverages = monthlyAverages;
+  temperatureBaselineStats[districtName].totalDataPoints = totalDataPoints;
+  temperatureBaselineStats[districtName].baselineYearsUsed = baselineYears.filter(function(year) {
+    return TemperatureRawData[districtName][year] && 
+           Object.keys(TemperatureRawData[districtName][year]).length > 0;
+  });
+  temperatureBaselineStats[districtName].lastUpdated = new Date().toISOString();
+  
+  print('Baseline Temperature statistics calculated for ' + districtName + ' (1991-2020):');
+  print('Total baseline data points: ' + totalDataPoints);
+  print('Baseline years processed: ' + temperatureBaselineStats[districtName].baselineYearsUsed.join(', '));
+  
+  return monthlyAverages;
+}
+
+// NEW: Calculate baseline rainfall averages (1991-2020) for anomaly calculations
+function calculateRainfallBaselineStats(districtName) {
+  print('Calculating Rainfall baseline statistics for ' + districtName + ' (1991-2020)...');
+  
+  var monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+                   'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  
+  var monthlyAverages = {};
+  var totalDataPoints = 0;
+  var baselineYears = [];
+  
+  // Generate list of baseline years (1991-2020)
+  for (var year = 1991; year <= 2020; year++) {
+    baselineYears.push(year);
+  }
+  
+  monthNames.forEach(function(monthName) {
+    var monthValues = [];
+    
+    // Only use baseline years (1991-2020)
+    baselineYears.forEach(function(year) {
+      if (rainfallRawData[districtName][year] && 
+          rainfallRawData[districtName][year][monthName] !== undefined) {
+        monthValues.push(rainfallRawData[districtName][year][monthName]);
+        totalDataPoints++;
+      }
+    });
+    
+    if (monthValues.length > 0) {
+      var sum = monthValues.reduce(function(a, b) { return a + b; }, 0);
+      monthlyAverages[monthName] = sum / monthValues.length;
+    } else {
+      monthlyAverages[monthName] = 0;
+    }
+  });
+  
+  // Initialize baseline stats if not exists
+  if (!rainfallBaselineStats[districtName]) {
+    rainfallBaselineStats[districtName] = {};
+  }
+  
+  // Store baseline stats
+  rainfallBaselineStats[districtName].monthlyAverages = monthlyAverages;
+  rainfallBaselineStats[districtName].totalDataPoints = totalDataPoints;
+  rainfallBaselineStats[districtName].baselineYearsUsed = baselineYears.filter(function(year) {
+    return rainfallRawData[districtName][year] && 
+           Object.keys(rainfallRawData[districtName][year]).length > 0;
+  });
+  rainfallBaselineStats[districtName].lastUpdated = new Date().toISOString();
+  
+  print('Baseline Rainfall statistics calculated for ' + districtName + ' (1991-2020):');
+  print('Total baseline data points: ' + totalDataPoints);
+  print('Baseline years processed: ' + rainfallBaselineStats[districtName].baselineYearsUsed.join(', '));
+  
+  return monthlyAverages;
+}
+
+// Calculate monthly averages from raw data
+function calculateTemperatureStats(districtName,startYear,endYear) {
+  print('Calculating Temperature statistics for ' + districtName + '...');
+  
+  var monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+                   'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  
+  var monthlyAverages = {};
+  var totalDataPoints = 0;
+   var yearsInRange = [];
+  
+  // Generate list of years in the specified range
+  for (var year = parseInt(startYear); year <= parseInt(endYear); year++) {
+    yearsInRange.push(year);
+  }
+  
+  
+  monthNames.forEach(function(monthName) {
+    var monthValues = [];
+    // var yearsProcessed = TemperatureStats[districtName].yearsProcessed;
+    
+    yearsInRange.forEach(function(year) {
+      if (TemperatureRawData[districtName][year] && 
+          TemperatureRawData[districtName][year][monthName] !== undefined) {
+        monthValues.push(TemperatureRawData[districtName][year][monthName]);
+        totalDataPoints++;
+      }
+    });
+    
+    if (monthValues.length > 0) {
+      var sum = monthValues.reduce(function(a, b) { return a + b; }, 0);
+      monthlyAverages[monthName] = sum / monthValues.length;
+    } else {
+      monthlyAverages[monthName] = 0;
+    }
+  });
+  
+  // Update stats object
+  TemperatureStats[districtName].monthlyAverages = monthlyAverages;
+  TemperatureStats[districtName].totalDataPoints = totalDataPoints;
+  TemperatureStats[districtName].yearsProcessed = yearsInRange.filter(function(year) {
+    return TemperatureRawData[districtName][year] && 
+           Object.keys(TemperatureRawData[districtName][year]).length > 0;
+  });
+  TemperatureStats[districtName].yearRange = {
+    start: parseInt(startYear),
+    end: parseInt(endYear)
+  };
+  TemperatureStats[districtName].lastUpdated = new Date().toISOString();
+  print('Statistics calculated for ' + districtName + ' (' + startYear + '-' + endYear + '):');
+  print('Total data points: ' + totalDataPoints);
+  print('Years processed: ' + TemperatureStats[districtName].yearsProcessed.join(', '));
+  print('Year range: ' + startYear + ' to ' + endYear);
+}
+
+
+// Calculate monthly averages from raw data
+// Calculate monthly averages from raw data for a specific year range
+function calculateRainfallStats(districtName, startYear, endYear) {
+  print('Calculating rainfall statistics for ' + districtName + ' (' + startYear + '-' + endYear + ')...');
+  
+  var monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+                   'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  
+  var monthlyAverages = {};
+  var totalDataPoints = 0;
+  var yearsInRange = [];
+  
+  // Generate list of years in the specified range
+  for (var year = parseInt(startYear); year <= parseInt(endYear); year++) {
+    yearsInRange.push(year);
+  }
+  
+  monthNames.forEach(function(monthName) {
+    var monthValues = [];
+    
+    // Only use years within the specified range
+    yearsInRange.forEach(function(year) {
+      if (rainfallRawData[districtName][year] && 
+          rainfallRawData[districtName][year][monthName] !== undefined) {
+        monthValues.push(rainfallRawData[districtName][year][monthName]);
+        totalDataPoints++;
+      }
+    });
+    
+    if (monthValues.length > 0) {
+      var sum = monthValues.reduce(function(a, b) { return a + b; }, 0);
+      monthlyAverages[monthName] = sum / monthValues.length;
+    } else {
+      monthlyAverages[monthName] = 0;
+    }
+  });
+  
+  // Update stats object with the new range-specific data
+  rainfallStats[districtName].monthlyAverages = monthlyAverages;
+  rainfallStats[districtName].totalDataPoints = totalDataPoints;
+  rainfallStats[districtName].yearsProcessed = yearsInRange.filter(function(year) {
+    return rainfallRawData[districtName][year] && 
+           Object.keys(rainfallRawData[districtName][year]).length > 0;
+  });
+  rainfallStats[districtName].yearRange = {
+    start: parseInt(startYear),
+    end: parseInt(endYear)
+  };
+  rainfallStats[districtName].lastUpdated = new Date().toISOString();
+  
+  print('Statistics calculated for ' + districtName + ' (' + startYear + '-' + endYear + '):');
+  print('Total data points: ' + totalDataPoints);
+  print('Years processed: ' + rainfallStats[districtName].yearsProcessed.join(', '));
+  print('Year range: ' + startYear + ' to ' + endYear);
+}
+
+
+
+// MODIFIED: Create average Temperature chart with dual labeling
+function createAverageTempChart(districtName) {
+  print('Creating average Temperature chart for ' + districtName + '...');
+  
+  // Show loading indicator
+  // showLoadingIndicator('Creating average Temperature chart for ' + districtName + '...');
+  
+  var monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+                   'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  
+  var averageFeatures = [];
+  var monthlyAverages = TemperatureStats[districtName].monthlyAverages;
+  
+  monthNames.forEach(function(monthName, index) {
+    var avgTemperature = monthlyAverages[monthName] || 0;
+    
+    var feature = ee.Feature(null, {
+      'month': monthName, // Keep full names in data
+      'month_num': index + 1,
+      'avg_Temperature_C': avgTemperature
+    });
+    
+    averageFeatures.push(feature);
+  });
+  
+  var averageFC = ee.FeatureCollection(averageFeatures);
+  
+  var chartTitle = 'Average Monthly Temperature in ' + districtName + '(' + selectedStartYear + '-' + selectedEndYear + ')';
+  
+  var chart = ui.Chart.feature.byFeature(averageFC, 'month', ['avg_Temperature_C'])
+    .setChartType('ColumnChart')
+    .setOptions({
+      title: chartTitle,
+      titleTextStyle: {fontSize: 14, bold: true},
+      hAxis: {
+        title: 'Month',
+        titleTextStyle: {fontSize: 12},
+        textStyle: {fontSize: 11, bold: true},
+        slantedText: false,
+        maxAlternation: 1,
+        showTextEvery: 1,
+        // Custom formatting for abbreviated display in panel but full names when expanded
+        format: 'MMM' // This will show abbreviated month names
+      },
+      vAxis: {
+        title: 'Average Temperature (C)',
+        titleTextStyle: {fontSize: 12},
+        textStyle: {fontSize: 10},
+        format: '#.#'
+      },
+      colors: ['#e74c3c'],
+      backgroundColor: 'white',
+      legend: {position: 'none'},
+      chartArea: {
+        left: 50,
+        top: 50,
+        width: '80%',
+        height: '65%'
+      },
+      height: 250,
+      // Enable tooltip with full information
+      tooltip: {
+        isHtml: false,
+        trigger: 'both'
+      }
+    });
+  
+  panel.add(chart);
+  chart_panel_widgets.push(chart);
+  
+  // Hide loading indicator
+  // hideLoadingIndicator();
+  
+  print('Average chart created for ' + districtName);
+}
+
+
+
+// MODIFIED: Create average rainfall chart with dual labeling
+function createAverageChart(districtName) {
+  print('Creating average rainfall chart for ' + districtName + '...');
+  
+  // Show loading indicator
+  // showLoadingIndicator('Creating average rainfall chart for ' + districtName + '...');
+  
+  var monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+                   'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  
+  var averageFeatures = [];
+  
+  var monthlyAverages = rainfallStats[districtName].monthlyAverages;
+  
+  monthNames.forEach(function(monthName, index) {
+    var avgRainfall = monthlyAverages[monthName] || 0;
+    
+    var feature = ee.Feature(null, {
+      'month': monthName, // Keep full names in data
+      'month_num': index + 1,
+      'avg_rainfall_mm': avgRainfall
+    });
+    
+    averageFeatures.push(feature);
+  });
+  
+  var averageFC = ee.FeatureCollection(averageFeatures);
+  
+  var chartTitle = 'Average Monthly Rainfall in ' + districtName + '(' +selectedStartYear+ '-' + selectedEndYear+')';
+  
+  var chart = ui.Chart.feature.byFeature(averageFC, 'month', ['avg_rainfall_mm'])
+    .setChartType('ColumnChart')
+    .setOptions({
+      title: chartTitle,
+      titleTextStyle: {fontSize: 14, bold: true},
+      hAxis: {
+        title: 'Month',
+        titleTextStyle: {fontSize: 12},
+        textStyle: {fontSize: 11, bold: true},
+        slantedText: false,
+        maxAlternation: 1,
+        showTextEvery: 1,
+        // Custom formatting for abbreviated display in panel but full names when expanded
+        format: 'MMM' // This will show abbreviated month names
+      },
+      vAxis: {
+        title: 'Average Rainfall (mm)',
+        titleTextStyle: {fontSize: 12},
+        textStyle: {fontSize: 10},
+        minValue: 0,
+        format: '#.#'
+      },
+      colors: ['#e74c3c'],
+      backgroundColor: 'white',
+      legend: {position: 'none'},
+      chartArea: {
+        left: 50,
+        top: 50,
+        width: '80%',
+        height: '65%'
+      },
+      height: 250,
+      // Enable tooltip with full information
+      tooltip: {
+        isHtml: false,
+        trigger: 'both'
+      }
+    });
+  
+  panel.add(chart);
+  chart_panel_widgets.push(chart);
+  
+  // Hide loading indicator
+  // hideLoadingIndicator();
+  
+  print('Average chart created for ' + districtName);
+}
+
+// MODIFIED: Function to handle district selection
+function onDistrictSelect(districtName) {
+  print('Selected district: ' + districtName);
+  
+  if (!districtName) {
+    print('No district name provided');
+    return;
+  }
+  
+  Map.clear();
+  clear_graphs(); // Clear any existing graphs
+  
+  // Filter the shapefile to get the selected district
+  var selectedDistrictFeature = pakistanDistricts.filter(ee.Filter.eq('NAME_3', districtName));
+  
+  // Check if district exists
+  selectedDistrictFeature.size().evaluate(function(count) {
+    if (count === 0) {
+      print('District "' + districtName + '" not found in shapefile');
+      return;
+    }
+    
+    print('District found, processing geometry...');
+    
+    // Get the geometry of the selected district
+    var districtGeometry = selectedDistrictFeature.geometry();
+    var simplifiedGeometry = districtGeometry.simplify({maxError: 100});
+    
+    // Calculate center coordinates dynamically
+    var centroid = districtGeometry.centroid();
+    
+    centroid.coordinates().evaluate(function(coords) {
+      print('Setting map center to coordinates: ' + coords);
+      Map.setCenter(coords[0], coords[1], 10);
+      
+      // Add district boundary to map
+      Map.addLayer(selectedDistrictFeature, {color: 'red', strokeWidth: 2, fillColor: 'transparent'}, 
+                   districtName + ' Boundary');
+      
+      currentDistrict = districtName;
+      currentDistrictGeometry = simplifiedGeometry;
+      currentDistrictName = districtName;
+      
+      // yearDropdown.setValue(null);
+      
+      print('District geometry set successfully. Starting data loading...');
+      
+      // Load all data for this district
+      
+      
+    }, function(error) {
+      print('Error getting district coordinates:', error);
+      print('Please try selecting the district again.');
+    });
+    
+  }, function(error) {
+    print('Error checking district existence:', error);
+    print('Please try selecting the district again.');
+  });
+}
+
+// FIXED: Function to handle graph generation with improved logic
+function onGenerateGraphs(selectedStartYear, selectedEndYear) {
+  print("inside onGenerateGraphs, selectedStartYear=", selectedStartYear);
+  print("inside onGenerateGraphs, selectedEndYear=", selectedEndYear);
+  
+  if (!currentDistrict || !currentDistrictGeometry) {
+    print('Please select a district first.');
+    return;
+  }
+  
+  if (isLoadingData) {
+    print('Data is still loading. Please wait...');
+    return;
+  }
+  
+  if (!selectedStartYear || !selectedEndYear) {
+    print('Please select both start and end years.');
+    return;
+  }
+  
+  if (parseInt(selectedStartYear) > parseInt(selectedEndYear)) {
+    print('Start year cannot be greater than end year.');
+    return;
+  }
+  
+  // Clear existing graphs
+  clear_graphs();
+  
+  // Check if data is loaded for the selected range
+  if (!isDistrictDataLoaded(currentDistrict, selectedStartYear, selectedEndYear)) {
+    // Check if ANY data exists for this district
+    if (rainfallRawData[currentDistrict] && Object.keys(rainfallRawData[currentDistrict]).length > 0) {
+      // Data exists but either:
+      // 1. Not all years in range are loaded, OR
+      // 2. Stats don't match the year range
+      
+      // Check if we need to load more data or just recalculate stats
+      var needToLoadData = false;
+      for (var year = parseInt(selectedStartYear); year <= parseInt(selectedEndYear); year++) {
+        if (!rainfallRawData[currentDistrict][year] || !TemperatureRawData[currentDistrict][year]) {
+          needToLoadData = true;
+          break;
+        }
+      }
+      
+      if (needToLoadData) {
+        // Load missing data
+        print('Loading missing data for years ' + selectedStartYear + '-' + selectedEndYear);
+        showLoadingIndicator('Loading Rainfall and Temperature data for ' + currentDistrict + ' (' + selectedStartYear + '-' + selectedEndYear + ')...\nPlease dont click on Calculate Results again,multi-decade analysis takes some time');
+        loadAllDistrictData(currentDistrict, currentDistrictGeometry, function() {
+          createAverageChart(currentDistrict);
+          createAverageTempChart(currentDistrict);
+          createAnomalyTrendChart(currentDistrict);
+          createTempAnomalyTrendChart(currentDistrict);
+          createTempRainAnomalyChart(currentDistrict);
+          hideLoadingIndicator();
+        });
+      } else {
+        // All data exists, just recalculate stats for the new range
+        print('Recalculating stats for years ' + selectedStartYear + '-' + selectedEndYear);
+        showLoadingIndicator('Recalculating statistics for ' + currentDistrict + ' (' + selectedStartYear + '-' + selectedEndYear + ')...');
+        
+        calculateRainfallStats(currentDistrict, selectedStartYear, selectedEndYear);
+        calculateTemperatureStats(currentDistrict, selectedStartYear, selectedEndYear);
+        createAverageChart(currentDistrict);
+        createAverageTempChart(currentDistrict);
+        createAnomalyTrendChart(currentDistrict);
+        createTempAnomalyTrendChart(currentDistrict);
+        createTempRainAnomalyChart(currentDistrict);
+        hideLoadingIndicator();
+      }
+    } else {
+      // No data exists, load everything
+      print('Loading all data for years ' + selectedStartYear + '-' + selectedEndYear);
+      showLoadingIndicator('Loading Rainfall and Temperature data for ' + currentDistrict + ' (' + selectedStartYear + '-' + selectedEndYear + ')...\nPlease dont click on Calculate Results again,multi-decade analysis takes some time');
+      loadAllDistrictData(currentDistrict, currentDistrictGeometry, function() {
+        createAverageChart(currentDistrict);
+        createAverageTempChart(currentDistrict);
+        createAnomalyTrendChart(currentDistrict);
+        createTempAnomalyTrendChart(currentDistrict);
+        createTempRainAnomalyChart(currentDistrict);
+        hideLoadingIndicator();
+      });
+    }
+  } else {
+    // Data exists and stats match the selected range - use directly
+    print('Using existing data for years ' + selectedStartYear + '-' + selectedEndYear);
+    showLoadingIndicator('Generating graphs for ' + currentDistrict + '...');
+    
+    createAverageChart(currentDistrict);
+    createAverageTempChart(currentDistrict);
+    createAnomalyTrendChart(currentDistrict);
+    createTempAnomalyTrendChart(currentDistrict);
+    createTempRainAnomalyChart(currentDistrict);
+    hideLoadingIndicator();
+  }
+}
+
+
+function isDistrictDataLoaded(districtName, startYear, endYear) {
+  // Check if basic data structures exist for both rainfall and temperature
+  if (!rainfallRawData[districtName] || !rainfallStats[districtName] ||
+      !TemperatureRawData[districtName] || !TemperatureStats[districtName]) {
+    return false;
+  }
+  
+  // If no year range provided, just check if any data exists
+  if (!startYear || !endYear) {
+    return rainfallStats[districtName].yearsProcessed.length > 0 && 
+           TemperatureStats[districtName].yearsProcessed.length > 0;
+  }
+  
+  // Check if all years in the range are loaded for both rainfall and temperature
+  for (var year = parseInt(startYear); year <= parseInt(endYear); year++) {
+    if (!rainfallRawData[districtName][year] || !TemperatureRawData[districtName][year]) {
+      return false;
+    }
+  }
+  
+  // Check if the stats were calculated for this exact range for both datasets
+  var rainfallStatsRange = rainfallStats[districtName].yearRange;
+  var temperatureStatsRange = TemperatureStats[districtName].yearRange;
+  
+  return rainfallStatsRange && temperatureStatsRange &&
+         rainfallStatsRange.start === parseInt(startYear) && 
+         rainfallStatsRange.end === parseInt(endYear) &&
+         temperatureStatsRange.start === parseInt(startYear) && 
+         temperatureStatsRange.end === parseInt(endYear);
+}
+
+
+function clear_graphs() {
+  // Also hide any loading indicators when clearing
+  // hideLoadingIndicator();
+  
+  for (var i = 0; i < chart_panel_widgets.length; i++) {
+    panel.remove(chart_panel_widgets[i]);
+  }
+  chart_panel_widgets = [];
+  print("CHARTS CLEARED!!!!");
+  
+  for (var i = 0; i < panel_anomaly_labels.length; i++) {
+    panel.remove(panel_anomaly_labels[i]);
+  }
+  panel_anomaly_labels = [];
+  print("Anomaly labels removed from UI!");
+}
+
+// // Function to generate average chart
+// function generateAverageChart() {
+//   if (!currentDistrict) {
+//     print('Please select a district first.');
+//     return;
+//   }
+  
+//   if (isLoadingData) {
+//     print('Data is still loading. Please wait...');
+//     return;
+//   }
+  
+//   print('Generating average chart...');
+//   createAverageChart(currentDistrict);
+// }
+
+// Function to display stored data (for debugging)
+
+
+// Function to populate dropdown with district names from shapefile
+function populateDistrictDropdown() {
+  print('Loading district names from shapefile...');
+  
+  // Show loading indicator for district loading
+  districtDropdown.setPlaceholder('Loading districts...');
+  districtDropdown.setDisabled(true);
+  
+  // Get unique district names from the shapefile
+  var districtNames = pakistanDistricts.distinct('NAME_3').aggregate_array('NAME_3');
+  
+  // Sort the names alphabetically
+  districtNames = districtNames.sort();
+  
+  districtNames.evaluate(function(names) {
+    // Remove any null or undefined values
+    var cleanNames = names.filter(function(name) {
+      return name !== null && name !== undefined && name !== '';
+    });
+    
+    print('Found ' + cleanNames.length + ' districts in Pakistan');
+    
+    // Update the dropdown with the district names
+    districtDropdown.items().reset(cleanNames);
+    districtDropdown.setPlaceholder('Choose from ' + cleanNames.length + ' districts...');
+    districtDropdown.setDisabled(false);
+    
+    print('District dropdown populated successfully!');
+  }, function(error) {
+    print('Error loading districts:', error);
+    districtDropdown.setPlaceholder('Error loading districts. Please refresh.');
+    districtDropdown.setDisabled(false);
+  });
+}
+
+
+//function to calculate temp anomalies per year
+// MODIFIED: Function to calculate temperature anomalies per year using baseline (1991-2020)
+function calculateTempAnomaliesPerYear(districtName) {
+  if (!TemperatureRawData[districtName] || !TemperatureStats[districtName]) {
+    print('No data available for ' + districtName);
+    return {};
+  }
+  
+  // MODIFIED: Ensure baseline statistics are calculated and use them for anomaly detection
+  if (!temperatureBaselineStats[districtName] || !temperatureBaselineStats[districtName].monthlyAverages) {
+    print('Calculating baseline temperature statistics for anomaly detection...');
+    calculateTemperatureBaselineStats(districtName);
+  }
+  
+  // MODIFIED: Get the BASELINE monthly averages (1991-2020) for anomaly calculations
+  var monthlyAverages = temperatureBaselineStats[districtName].monthlyAverages;
+  var monthNames = Object.keys(monthlyAverages);
+  
+  print('Using baseline temperature averages (1991-2020) for anomaly detection in ' + districtName + ':');
+  Object.keys(monthlyAverages).forEach(function(month) {
+    print('  ' + month + ': ' + monthlyAverages[month].toFixed(2) + '°C');
+  });
+  
+  // Initialize anomaly data for this district
+  if (!anomalyTempTrendData[districtName]) {
+    anomalyTempTrendData[districtName] = {};
+  }
+  anomalyTempTrendData[districtName] = {};
+  var yearsProcessed = TemperatureStats[districtName].yearsProcessed;
+  var yearlyAnomalies = {};
+  
+  // Loop through each year
+  yearsProcessed.forEach(function(year) {
+    var anomalyCount = 0;
+    
+    // Check each month in that year
+    monthNames.forEach(function(monthName) {
+      if (TemperatureRawData[districtName][year] && 
+          TemperatureRawData[districtName][year][monthName] !== undefined) {
+        
+        var monthValue = TemperatureRawData[districtName][year][monthName];
+        var monthAverage = monthlyAverages[monthName]; // Get that specific month's average
+       // Get both threshold values
+       // FIXED VERSION:
+       var thresholdPercentAbove = temperatureThresholdSlider.getValue();
+        var thresholdPercentBelow = temperatureThresholdSlider_2.getValue();
+      
+      var thresholdAbove, thresholdBelow;
+      
+      if (monthAverage >= 0) {
+        // Positive temperatures - original logic works
+        thresholdAbove = monthAverage * (1 + thresholdPercentAbove/100);
+        thresholdBelow = monthAverage * (1 - thresholdPercentBelow/100);
+      } else {
+        // Negative temperatures - logic needs to be inverted
+        thresholdAbove = monthAverage * (1 - thresholdPercentAbove/100); // Less negative = warmer
+        thresholdBelow = monthAverage * (1 + thresholdPercentBelow/100); // More negative = colder
+      }
+      
+      if (monthValue > thresholdAbove || monthValue < thresholdBelow) {
+        anomalyCount++;
+        print("ANOMALY FOUND: " + monthName + " " + year + " in " + districtName);
+        print("  Value: " + monthValue.toFixed(2) + " C");
+        print("  " + monthName + " Average: " + monthAverage.toFixed(2) + " C");
+        
+        if (monthValue > thresholdAbove) {
+          print("  Type: ABOVE AVERAGE");
+          print("  Threshold (" + thresholdPercentAbove + "% above avg): " + thresholdAbove.toFixed(2) + " C");
+        } else {
+          print("  Type: BELOW AVERAGE");
+          print("  Threshold (" + thresholdPercentBelow + "% below avg): " + thresholdBelow.toFixed(2) + " C");
+        }
+      }
+       
+       
+      }
+    });
+    
+    yearlyAnomalies[year] = anomalyCount;
+    anomalyTempTrendData[districtName][year] = anomalyCount;
+  });
+  
+  print('Anomalies calculated per year for ' + districtName + ':', yearlyAnomalies);
+  return yearlyAnomalies;
+}
+
+
+
+// MODIFIED: Function to calculate rainfall anomalies per year using baseline (1991-2020)
+function calculateAnomaliesPerYear(districtName) {
+  if (!rainfallRawData[districtName] || !rainfallStats[districtName]) {
+    print('No data available for ' + districtName);
+    return {};
+  }
+  
+  // MODIFIED: Ensure baseline statistics are calculated and use them for anomaly detection
+  if (!rainfallBaselineStats[districtName] || !rainfallBaselineStats[districtName].monthlyAverages) {
+    print('Calculating baseline rainfall statistics for anomaly detection...');
+    calculateRainfallBaselineStats(districtName);
+  }
+  
+  // MODIFIED: Get the BASELINE monthly averages (1991-2020) for anomaly calculations
+  var monthlyAverages = rainfallBaselineStats[districtName].monthlyAverages;
+  var monthNames = Object.keys(monthlyAverages);
+  
+  print('Using baseline rainfall averages (1991-2020) for anomaly detection in ' + districtName + ':');
+  Object.keys(monthlyAverages).forEach(function(month) {
+    print('  ' + month + ': ' + monthlyAverages[month].toFixed(2) + ' mm');
+  });
+  
+  // Initialize anomaly data for this district
+  if (!anomalyTrendData[districtName]) {
+    anomalyTrendData[districtName] = {};
+  }
+  anomalyTrendData[districtName]={};
+  
+  var yearsProcessed = rainfallStats[districtName].yearsProcessed;
+  var yearlyAnomalies = {};
+  
+  // Loop through each year
+  yearsProcessed.forEach(function(year) {
+    var anomalyCount = 0;
+    
+    // Check each month in that year
+    monthNames.forEach(function(monthName) {
+      if (rainfallRawData[districtName][year] && 
+          rainfallRawData[districtName][year][monthName] !== undefined) {
+        
+        var monthValue = rainfallRawData[districtName][year][monthName];
+        var monthAverage = monthlyAverages[monthName]; // Get that specific month's average
+       // Get both threshold values
+      var thresholdPercentAbove = rainfallThresholdSlider.getValue();
+      var thresholdPercentBelow = rainfallThresholdSlider_2.getValue();
+      
+      var thresholdAbove = monthAverage * (1 + thresholdPercentAbove/100);
+      var thresholdBelow = monthAverage * (1 - thresholdPercentBelow/100);
+      
+      if (monthValue > thresholdAbove || monthValue < thresholdBelow) {
+        anomalyCount++;
+        print("ANOMALY FOUND: " + monthName + " " + year + " in " + districtName);
+        print("  Value: " + monthValue.toFixed(2) + " mm");
+        print("  " + monthName + " Average: " + monthAverage.toFixed(2) + " mm");
+        
+        if (monthValue > thresholdAbove) {
+          print("  Type: ABOVE AVERAGE");
+          print("  Threshold (" + thresholdPercentAbove + "% above avg): " + thresholdAbove.toFixed(2) + " mm");
+        } else {
+          print("  Type: BELOW AVERAGE");
+          print("  Threshold (" + thresholdPercentBelow + "% below avg): " + thresholdBelow.toFixed(2) + " mm");
+        }
+      }
+       
+       
+      }
+    });
+    
+    yearlyAnomalies[year] = anomalyCount;
+    anomalyTrendData[districtName][year] = anomalyCount;
+  });
+  
+  print('Anomalies calculated per year for ' + districtName + ':', yearlyAnomalies);
+  return yearlyAnomalies;
+}
+
+
+
+// MODIFIED: Function to create anomaly trend chart with dual labeling
+function createTempAnomalyTrendChart(districtName) {
+  if (!districtName) {
+    print('Please select a district first.');
+    return;
+  }
+  
+  if (isLoadingData) {
+    print('Data is still loading. Please wait...');
+    return;
+  }
+  
+  if (!TemperatureRawData[districtName] || !TemperatureStats[districtName]) {
+    print('No data available for ' + districtName + '. Please load district data first.');
+    return;
+  }
+  
+  print('Creating anomaly trend chart for ' + districtName + '...');
+  
+  // Show loading indicator
+  // showLoadingIndicator('Creating anomaly trend chart for ' + districtName + '...');
+  
+  // Calculate anomalies per year
+  var yearlyAnomalies = calculateTempAnomaliesPerYear(districtName);
+  
+  // Create features for the chart
+  var anomalyFeatures = [];
+  var years = Object.keys(yearlyAnomalies).sort(); // Sort years
+  
+  if (years.length === 0) {
+    // hideLoadingIndicator();
+    print('No anomaly data available for ' + districtName);
+    return;
+  }
+  
+  years.forEach(function(year) {
+    var anomalyCount = yearlyAnomalies[year];
+    
+    var feature = ee.Feature(null, {
+      'year': parseInt(year),
+      'year_str': year.toString(), // Keep full year in data
+      'anomaly_count': anomalyCount
+    });
+    
+    anomalyFeatures.push(feature);
+  });
+  
+  var anomalyFC = ee.FeatureCollection(anomalyFeatures);
+  
+  var chartTitle = 'Temperature Anomalies: Yearly trend in ' + districtName + '(' + selectedStartYear + '-' + selectedEndYear + ')';
+  
+  var chart = ui.Chart.feature.byFeature(anomalyFC, 'year_str', ['anomaly_count'])
+    .setChartType('LineChart')
+    .setOptions({
+      title: chartTitle,
+      titleTextStyle: {fontSize: 14, bold: true},
+      hAxis: {
+        title: 'Year',
+        titleTextStyle: {fontSize: 12},
+        textStyle: {fontSize: 11, bold: true},
+        slantedText: false,
+        maxAlternation: 1,
+        showTextEvery: 1,
+        // For years, we can use custom tick formatting
+        ticks: years.map(function(year) {
+          return {
+            v: year,
+            f: "'" + year.toString().substr(-2) // Show '14, '15, etc. in panel
+          };
+        })
+      },
+      vAxis: {
+        title: 'Anomalous Months',
+        titleTextStyle: {fontSize: 12},
+        textStyle: {fontSize: 10},
+        minValue: 0,
+        format: '#'
+      },
+      colors: ['#e67e22'],
+      backgroundColor: 'white',
+      legend: {position: 'none'},
+      chartArea: {
+        left: 50,
+        top: 50,
+        width: '80%',
+        height: '65%'
+      },
+      pointSize: 6,
+      lineWidth: 3,
+      height: 250,
+      // Enable tooltip with full information
+      tooltip: {
+        isHtml: false,
+        trigger: 'both'
+      }
+    });
+  
+  panel.add(chart);
+  chart_panel_widgets.push(chart);
+  
+  // Hide loading indicator
+  // hideLoadingIndicator();
+  
+  // Add summary information
+  var totalAnomalies = 0;
+  var maxAnomaliesYear = years[0];
+  var maxAnomaliesCount = 0;
+  
+  // Calculate total anomalies and find year with maximum anomalies
+  years.forEach(function(year) {
+    var count = yearlyAnomalies[year];
+    totalAnomalies += count;
+    
+    if (count > maxAnomaliesCount) {
+      maxAnomaliesCount = count;
+      maxAnomaliesYear = year;
+    }
+  });
+  
+  var summaryLabel = ui.Label({
+    value: 'Anomaly Summary for ' + districtName + ':\n' +
+           'Total anomalous months: ' + totalAnomalies + '\n' +
+           'Highest anomalies in: ' + maxAnomaliesYear + ' (' + yearlyAnomalies[maxAnomaliesYear] + ' months)',
+    style: {
+      fontSize: '12px', 
+      color: '#e67e22',
+      fontWeight: 'bold',
+      margin: '10px 0',
+      whiteSpace: 'pre'
+    }
+  });
+  
+  // panel.add(summaryLabel);
+  // panel_anomaly_labels.push(summaryLabel);
+  
+  print('Anomaly trend chart created for ' + districtName);
+}
+
+
+// Function to create combined temperature and rainfall anomaly chart
+function createTempRainAnomalyChart(districtName) {
+  if (!districtName) {
+    print('Please select a district first.');
+    return;
+  }
+  
+  if (isLoadingData) {
+    print('Data is still loading. Please wait...');
+    return;
+  }
+  
+  // Check if both anomaly datasets exist for this district
+  if (!anomalyTrendData[districtName] || !anomalyTempTrendData[districtName]) {
+    print('Anomaly data not available for ' + districtName + '. Please generate individual anomaly charts first.');
+    return;
+  }
+  //can use below two vairbales for chart aswell
+  // var yearlyRainfallAnomalies=calculateAnomaliesPerYear(districtName);
+  // var yearlyTemperatureAnomalies=calculateTempAnomaliesPerYear(districtName);
+  print('Creating combined temperature and rainfall anomaly chart for ' + districtName + '...');
+  
+  // Get all years that have data in both datasets
+  var rainfallYears = Object.keys(anomalyTrendData[districtName]).map(function(year) { return parseInt(year); }).sort();
+  var tempYears = Object.keys(anomalyTempTrendData[districtName]).map(function(year) { return parseInt(year); }).sort();
+  
+  // Find common years (intersection)
+  var commonYears = rainfallYears.filter(function(year) {
+    return tempYears.indexOf(year) !== -1;
+  });
+  
+  if (commonYears.length === 0) {
+    print('No common years found between rainfall and temperature anomaly data for ' + districtName);
+    return;
+  }
+  
+  // Create features for the chart
+  var combinedFeatures = [];
+  var totalCombinedAnomalies = 0;
+  var maxCombinedYear = commonYears[0];
+  var maxCombinedCount = 0;
+  
+  commonYears.forEach(function(year) {
+    var rainfallAnomalies = anomalyTrendData[districtName][year] || 0;
+    var tempAnomalies = anomalyTempTrendData[districtName][year] || 0;
+    var combinedAnomalies = rainfallAnomalies + tempAnomalies;
+    
+    totalCombinedAnomalies += combinedAnomalies;
+    
+    if (combinedAnomalies > maxCombinedCount) {
+      maxCombinedCount = combinedAnomalies;
+      maxCombinedYear = year;
+    }
+    
+    var feature = ee.Feature(null, {
+      'year': year,
+      'year_str': year.toString(),
+      // Only include combined_anomalies in the feature
+      'combined_anomalies': combinedAnomalies
+    });
+    
+    combinedFeatures.push(feature);
+  });
+  
+  var combinedFC = ee.FeatureCollection(combinedFeatures);
+  
+  var chartTitle = 'Combined Climate Anomalies in ' + districtName + ' (' + selectedStartYear + '-' + selectedEndYear + ')';
+  
+  // Modified chart creation - only plot combined_anomalies
+  var chart = ui.Chart.feature.byFeature(combinedFC, 'year_str', ['combined_anomalies'])
+    .setChartType('LineChart')
+    .setOptions({
+      title: chartTitle,
+      titleTextStyle: {fontSize: 14, bold: true},
+      hAxis: {
+        title: 'Year',
+        titleTextStyle: {fontSize: 12},
+        textStyle: {fontSize: 11, bold: true},
+        slantedText: false,
+        maxAlternation: 1,
+        showTextEvery: 1,
+        ticks: commonYears.map(function(year) {
+          return {
+            v: year.toString(),
+            f: "'" + year.toString().substr(-2) // Show '14, '15, etc. in panel
+          };
+        })
+      },
+      vAxis: {
+        title: 'Combined Anomalous Months',
+        titleTextStyle: {fontSize: 12},
+        textStyle: {fontSize: 10},
+        minValue: 0,
+        format: '#'
+      },
+      colors: ['#9b59b6'], // Only purple for combined line
+      backgroundColor: 'white',
+      legend: {
+        position: 'bottom',
+        alignment: 'center',
+        textStyle: {fontSize: 10}
+      },
+      series: {
+        0: {
+          labelInLegend: 'Combined Anomalies',
+          pointSize: 6,
+          lineWidth: 3
+        }
+      },
+      chartArea: {
+        left: 60,
+        top: 50,
+        width: '75%',
+        height: '60%'
+      },
+      height: 300,
+      tooltip: {
+        isHtml: false,
+        trigger: 'both'
+      }
+    });
+  
+  panel.add(chart);
+  chart_panel_widgets.push(chart);
+  
+  // Add summary information
+  var avgCombinedAnomalies = totalCombinedAnomalies / commonYears.length;
+  
+  var summaryLabel = ui.Label({
+    value: 'Combined Anomaly Summary for ' + districtName + ':\n' +
+           'Years analyzed: ' + commonYears.length + ' (' + commonYears[0] + '-' + commonYears[commonYears.length-1] + ')\n' +
+           'Total combined anomalous months: ' + totalCombinedAnomalies + '\n' +
+           'Average anomalies per year: ' + avgCombinedAnomalies.toFixed(1) + '\n' +
+           'Highest combined anomalies: ' + maxCombinedYear + ' (' + maxCombinedCount + ' months)',
+    style: {
+      fontSize: '12px', 
+      color: '#9b59b6',
+      fontWeight: 'bold',
+      margin: '10px 0',
+      whiteSpace: 'pre'
+    }
+  });
+  
+  // panel.add(summaryLabel);
+  // panel_anomaly_labels.push(summaryLabel);
+  
+  print('Combined anomaly chart created for ' + districtName);
+  print('Data range: ' + commonYears[0] + '-' + commonYears[commonYears.length-1]);
+  print('Total years: ' + commonYears.length);
+}
+
+// MODIFIED: Function to create anomaly trend chart with dual labeling Rainfall
+function createAnomalyTrendChart(districtName) {
+  if (!districtName) {
+    print('Please select a district first.');
+    return;
+  }
+  
+  if (isLoadingData) {
+    print('Data is still loading. Please wait...');
+    return;
+  }
+  
+  if (!rainfallRawData[districtName] || !rainfallStats[districtName]) {
+    print('No data available for ' + districtName + '. Please load district data first.');
+    return;
+  }
+  
+  print('Creating anomaly trend chart for ' + districtName + '...');
+  
+  // Show loading indicator
+  // showLoadingIndicator('Creating anomaly trend chart for ' + districtName + '...');
+  
+  // Calculate anomalies per year
+  var yearlyAnomalies = calculateAnomaliesPerYear(districtName);
+  
+  // Create features for the chart
+  var anomalyFeatures = [];
+  var years = Object.keys(yearlyAnomalies).sort(); // Sort years
+  
+  if (years.length === 0) {
+    // hideLoadingIndicator();
+    print('No anomaly data available for ' + districtName);
+    return;
+  }
+  
+  years.forEach(function(year) {
+    var anomalyCount = yearlyAnomalies[year];
+    
+    var feature = ee.Feature(null, {
+      'year': parseInt(year),
+      'year_str': year.toString(), // Keep full year in data
+      'anomaly_count': anomalyCount
+    });
+    
+    anomalyFeatures.push(feature);
+  });
+  
+  var anomalyFC = ee.FeatureCollection(anomalyFeatures);
+  
+  var chartTitle = 'Rainfall Anomalies: Yearly trend in ' + districtName + ' (' + selectedStartYear + '-' +selectedEndYear + ')';
+  
+  var chart = ui.Chart.feature.byFeature(anomalyFC, 'year_str', ['anomaly_count'])
+    .setChartType('LineChart')
+    .setOptions({
+      title: chartTitle,
+      titleTextStyle: {fontSize: 14, bold: true},
+      hAxis: {
+        title: 'Year',
+        titleTextStyle: {fontSize: 12},
+        textStyle: {fontSize: 11, bold: true},
+        slantedText: false,
+        maxAlternation: 1,
+        showTextEvery: 1,
+        // For years, we can use custom tick formatting
+        ticks: years.map(function(year) {
+          return {
+            v: year,
+            f: "'" + year.toString().substr(-2) // Show '14, '15, etc. in panel
+          };
+        })
+      },
+      vAxis: {
+        title: 'Anomalous Months',
+        titleTextStyle: {fontSize: 12},
+        textStyle: {fontSize: 10},
+        minValue: 0,
+        format: '#'
+      },
+      colors: ['#e67e22'],
+      backgroundColor: 'white',
+      legend: {position: 'none'},
+      chartArea: {
+        left: 50,
+        top: 50,
+        width: '80%',
+        height: '65%'
+      },
+      pointSize: 6,
+      lineWidth: 3,
+      height: 250,
+      // Enable tooltip with full information
+      tooltip: {
+        isHtml: false,
+        trigger: 'both'
+      }
+    });
+  
+  panel.add(chart);
+  chart_panel_widgets.push(chart);
+  
+  // Hide loading indicator
+  // hideLoadingIndicator();
+  
+  // Add summary information
+  var totalAnomalies = 0;
+  var maxAnomaliesYear = years[0];
+  var maxAnomaliesCount = 0;
+  
+  // Calculate total anomalies and find year with maximum anomalies
+  years.forEach(function(year) {
+    var count = yearlyAnomalies[year];
+    totalAnomalies += count;
+    
+    if (count > maxAnomaliesCount) {
+      maxAnomaliesCount = count;
+      maxAnomaliesYear = year;
+    }
+  });
+  
+  var summaryLabel = ui.Label({
+    value: 'Anomaly Summary for ' + districtName + ':\n' +
+           'Total anomalous months: ' + totalAnomalies + '\n' +
+           'Highest anomalies in: ' + maxAnomaliesYear + ' (' + yearlyAnomalies[maxAnomaliesYear] + ' months)',
+    style: {
+      fontSize: '12px', 
+      color: '#e67e22',
+      fontWeight: 'bold',
+      margin: '10px 0',
+      whiteSpace: 'pre'
+    }
+  });
+  
+  // panel.add(summaryLabel);
+  // panel_anomaly_labels.push(summaryLabel);
+  
+  print('Anomaly trend chart created for ' + districtName);
+}
+
+// Function to generate anomaly trend chart (button callback)
+// function generateAnomalyTrendChart() {
+//   if (!currentDistrict) {
+//     print('Please select a district first.');
+//     return;
+//   }
+  
+//   if (isLoadingData) {
+//     print('Data is still loading. Please wait...');
+//     return;
+//   }
+  
+//   print('Generating anomaly trend chart...');
+//   createAnomalyTrendChart(currentDistrict);
+// }
+
+
+// Create UI Panel
+var panel = ui.Panel({
+  style: {width: '520px', padding: '15px', backgroundColor: 'white'}
+});
+
+var clearGraphsButton = ui.Button({
+  label: 'Clear Graphs',
+  onClick: clear_graphs,
+  style: {
+    stretch: 'horizontal',
+    margin: '0 0 10px 0',
+    backgroundColor: '#f39c12',
+    color: 'black',
+    fontWeight: 'bold',
+    border: '1px solid black'
+  }
+});
+
+
+
+// Title
+var title = ui.Label({
+  value: 'Pakistan Districts: Historical Rainfall and Temperature Analysis',
+  style: {
+    fontSize: '18px', 
+    fontWeight: 'bold', 
+    margin: '0 0 15px 0',
+    color: '#2c3e50'
+  }
+});
+
+// District selection
+var districtLabel = ui.Label({
+  value: 'Select District:',
+  style: {fontSize: '14px', margin: '0 0 5px 0', fontWeight: 'bold'}
+});
+
+// Create dropdown (will be populated dynamically)
+var districtDropdown = ui.Select({
+  items: [], // Start with empty list
+  placeholder: 'Loading districts...',
+  onChange: onDistrictSelect,
+  style: {width: '478px', margin: '0 0 15px 0', border: '1px solid black'}
+});
+
+function onStartYearSelect(year){
+  selectedStartYear=year;
+  print("selected start year= ",selectedStartYear);
+}
+
+function onEndYearSelect(year){
+  selectedEndYear=year;
+  print("selected end year=",selectedEndYear);
+}
+// NEW: Year selection
+var yearLabel = ui.Label({
+  value: 'Select Year:',
+  style: {fontSize: '14px', margin: '0 0 5px 0', fontWeight: 'bold'}
+});
+var startYearDropdown = ui.Select({
+items: (function() {
+    var yearList = [];
+    for (var year = 1984; year <= 2025; year++) {
+      yearList.push(year.toString());
+    }
+    return yearList;
+  })(),
+  placeholder: 'Start year',
+  onChange: onStartYearSelect,
+  style: {width: '100px', margin: '0 0 15px 0', border: '1px solid black'}
+});
+
+var endYearDropdown = ui.Select({
+items: (function() {
+    var yearList = [];
+    for (var year = 1984; year <= 2025; year++) {
+      yearList.push(year.toString());
+    }
+    return yearList;
+  })(),
+  placeholder: 'End year',
+  onChange: onEndYearSelect,
+  style: {width: '100px', margin: '0 0 15px 0', border: '1px solid black'}
+});
+
+// var yearDropdown = ui.Select({
+// items: (function() {
+//     var yearList = [];
+//     for (var year = 2014; year <= 2025; year++) {
+//       yearList.push(year.toString());
+//     }
+//     return yearList;
+//   })(),
+//   placeholder: 'Select a year...',
+//   onChange: onYearSelect,
+//   style: {width: '478px', margin: '0 0 15px 0', border: '1px solid black'}
+// });
+
+// Add after yearDropdown declaration
+var rainfallThresholdLabel = ui.Label({
+  value: 'Anomaly Threshold: 1% above average Rainfall',
+  style: {fontSize: '14px', margin: '10px 0 5px 0', fontWeight: 'bold'}
+});
+
+var rainfallThresholdLabel_2 = ui.Label({
+  value: 'Anomaly Threshold: 1% below average Rainfall',
+  style: {fontSize: '14px', margin: '10px 0 5px 0', fontWeight: 'bold'}
+});
+var rainfallThresholdSlider = ui.Slider({
+  min: 1,
+  max: 50,
+  value: 1,
+  step: 1,
+  style: {
+    width: '478px',
+    margin: '0 0 15px 0',
+    backgroundColor: '#f8f9fa',  // Background color of the slider track
+    color: '#3498db',           // Color of the slider handle/thumb
+    border: '1px solid #dee2e6' // Border aoirnd slider
+  },
+  onChange: function(value) {
+    rainfallThresholdLabel.setValue('Anomaly Threshold: ' + value + '% above average Rainfall ');
+  }
+});
+
+var rainfallThresholdSlider_2 = ui.Slider({
+  min: 1,
+  max: 50,
+  value: 1,
+  step: 1,
+  style: {
+    width: '478px',
+    margin: '0 0 15px 0',
+    backgroundColor: '#f8f9fa',  // Background color of the slider track
+    color: '#3498db',           // Color of the slider handle/thumb
+    border: '1px solid #dee2e6' // Border aoirnd slider
+  },
+  onChange: function(value) {
+    rainfallThresholdLabel_2.setValue('Anomaly Threshold: ' + value + '% below average Rainfall ');
+  }
+});
+
+var temperatureThresholdSlider = ui.Slider({
+  min: 1,
+  max: 50,
+  value: 1,
+  step: 1,
+  style: {
+    width: '478px',
+    margin: '0 0 15px 0',
+    backgroundColor: '#f8f9fa',  // Background color of the slider track
+    color: '#3498db',           // Color of the slider handle/thumb
+    border: '1px solid #dee2e6' // Border aoirnd slider
+  },
+  onChange: function(value) {
+    temperatureThresholdLabel.setValue('Anomaly Threshold: ' + value + '% above average Temperature');
+  }
+});
+
+var temperatureThresholdLabel = ui.Label({
+  value: 'Anomaly Threshold: 1% above average Temperature',
+  style: {fontSize: '14px', margin: '10px 0 5px 0', fontWeight: 'bold'}
+});
+
+var temperatureThresholdLabel_2 = ui.Label({
+  value: 'Anomaly Threshold: 1% below average Temperature',
+  style: {fontSize: '14px', margin: '10px 0 5px 0', fontWeight: 'bold'}
+});
+var temperatureThresholdSlider_2 = ui.Slider({
+  min: 1,
+  max: 50,
+  value: 1,
+  step: 1,
+  style: {
+    width: '478px',
+    margin: '0 0 15px 0',
+    backgroundColor: '#f8f9fa',  // Background color of the slider track
+    color: '#3498db',           // Color of the slider handle/thumb
+    border: '1px solid #dee2e6' // Border aoirnd slider
+  },
+  onChange: function(value) {
+    temperatureThresholdLabel_2.setValue('Anomaly Threshold: ' + value + '% below average Temperature');
+  }
+});
+// MODIFIED: Remove the old generate button, replace with data loading info
+var generateButton = ui.Button({
+  label: 'Calculate Results',
+  onClick: function() {
+    onGenerateGraphs(selectedStartYear,selectedEndYear);
+  },
+  style: {
+    stretch: 'horizontal',
+    margin: '0 0 15px 0',
+    backgroundColor: '#3498db',
+    color: 'black',
+    fontWeight: 'bold',
+    border: '1px solid black'
+  }
+});
+
+// Instructions
+var instructions = ui.Label({
+  value: 
+         '1. Wait for districts to load\n' +
+         '2. Select a district from dropdown\n' +
+         '3. Select a start year and an end year\n' +
+         '4. Set thresholds for anomaly calculation for rainfall and temperature\n' +
+         '5. Click on Calculate Results to generate graphs\n'+
+         '6. The following graphs will be shown for your selected time period:\n' +
+         '   - Average monthly rainfall in that district\n' +
+         '   - Average monthly temperature in that district\n' +
+         '   - Yearly rainfall anomalies in that district\n' + 
+         '   - Yearly temperature anomalies in that district\n' +
+         '   - A graph showing the combined yearly anomalies in that district\n'+
+         'IMPORTANT: Anomaly detection uses 1991-2020 baseline averages\n' +
+         'regardless of your selected time period, following WMO standards.\n' +
+         'Note: Loading data may take a while',
+  style: {
+    fontSize: '12px', 
+    color: '#7f8c8d',
+    whiteSpace: 'pre'
+  }
+});
+
+var instructionsPanel = ui.Panel({
+  style: {
+    width: '350px', 
+    padding: '15px', 
+    backgroundColor: '#f8f9fa',
+    border: '1px solid #dee2e6',
+    margin: '0 0 10px 0'
+  }
+});
+
+var instructionsTitle = ui.Label({
+  value: 'Instructions',
+  style: {
+    fontSize: '16px', 
+    fontWeight: 'bold', 
+    margin: '0 0 10px 0',
+    color: '#2c3e50'
+  }
+});
+
+
+
+//ui and stuff below
+
+var dateRangePanel = ui.Panel({
+  widgets: [startYearDropdown, ui.Label(' to '), endYearDropdown],
+  layout: ui.Panel.Layout.flow('horizontal')
+});
+
+
+instructionsPanel.add(instructionsTitle);
+instructionsPanel.add(instructions);
+
+
+
+// Add UI components to panel
+panel.add(title);
+panel.add(instructionsTitle);
+panel.add(instructions)
+panel.add(districtLabel);
+panel.add(districtDropdown);
+panel.add(dateRangePanel);
+// panel.add(startYearDropdown)
+// panel.add(endYearDropdown)
+panel.add(rainfallThresholdLabel);
+panel.add(rainfallThresholdSlider);
+panel.add(rainfallThresholdLabel_2);
+panel.add(rainfallThresholdSlider_2)
+panel.add(temperatureThresholdLabel);
+panel.add(temperatureThresholdSlider);
+panel.add(temperatureThresholdLabel_2);
+panel.add(temperatureThresholdSlider_2)
+
+panel.add(generateButton);
+
+// panel.add(yearLabel);
+// panel.add(yearDropdown);
+// panel.add(clearGraphsButton);
+
+// Add panel to map
+// ui.root.insert(0, instructionsPanel);
+ui.root.insert(0, panel);
+
+// Set initial map view to Pakistan
+Map.setCenter(69.0, 30.0, 6);
+
+// Initialize the application
+print('=== PAKISTAN DISTRICTS RAINFALL ANALYSIS ===');
+print('Loading all districts from shapefile...');
+
+// Populate the dropdown with district names
+populateDistrictDropdown();
