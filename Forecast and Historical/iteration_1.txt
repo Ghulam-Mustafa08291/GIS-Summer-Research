@@ -1,0 +1,381 @@
+// ===========================================================================================
+// PAKISTAN CLIMATE RISK: COMBINED PAST (3-MONTH) & FUTURE (16-DAY) ANOMALY DETECTION
+// ===========================================================================================
+
+var pakistanDistricts = ee.FeatureCollection('projects/ee-mustafaasghar66/assets/gadm36_PAK_3');
+var dataFC = ee.FeatureCollection('projects/ee-mustafaasghar66/assets/Pakistan_Climate_2014_2024');
+
+// --- CONFIGURATION ---
+var today = ee.Date(Date.now());
+var forecastEndDate = today.advance(16, 'day');
+
+// 1. GFS DATASET (Future)
+var gfsDataset = ee.ImageCollection('NOAA/GFS0P25')
+  .filterDate(today.advance(-1, 'day'), today.advance(1, 'day'))
+  .filter(ee.Filter.lte('forecast_hours', 384))
+  .filter(ee.Filter.gte('forecast_hours', 0));
+
+// 2. ERA5 DATASET (Past) - Last 3 months
+var era5Dataset = ee.ImageCollection("ECMWF/ERA5_LAND/MONTHLY_AGGR")
+  .select(["total_precipitation_sum", "temperature_2m"])
+  .filterDate("2020-01-01", today); 
+var latestEra5Images = era5Dataset.sort('system:time_start', false).limit(3);
+
+// Global UI Variables (Restored from Forecast App)
+var loadingLabel = null;
+var loadingPanel = null;
+var districtLabel = null;
+var districtInfoPanel = null;
+var districtInfoTitle = null;
+var panelDistrictWidgets = [];
+var keepRotating = true;
+var districtLoadingSymbol = null;
+var debugLayerPrecip = null;
+var debugLayerTemp = null;
+
+print("Today's date:", today);
+print("Forecast end date:", forecastEndDate);
+print("Analysis: Past 3 Months (ERA5) + Next 16 Days (GFS)");
+
+
+// --- UI SETUP ---
+var panel = ui.Panel({ style: {width: '400px', padding: '20px'} });
+panel.add(ui.Label({value: 'Combined Climate Risk: Forecast + History', style: {fontSize: '20px', fontWeight: 'bold', margin: '0 0 20px 0'}}));
+
+panel.add(ui.Label({
+  value: 'This tool calculates a "Total Anomaly Score" by combining:\n' +
+         '1. The deviation of the last 3 months from normal (ERA5).\n' +
+         '2. The deviation of the next 16-day forecast from normal (GFS).\n\n' +
+         '• Blue: Overall Wetter/Cooler than normal (Past + Future).\n' +
+         '• Red: Overall Drier/Warmer than normal (Past + Future).',
+  style: { fontSize: '14px', margin: '0 0 20px 0', whiteSpace: 'pre-line', color: '#555' }
+}));
+
+panel.add(ui.Label('1. Select Weather Parameter:', {fontWeight: 'bold', fontSize: '16px'}));
+var parameterSelect = ui.Select({
+  items: [{label: 'Temperature (°C)', value: 'temperature'}, {label: 'Precipitation (mm)', value: 'precipitation'}],
+  value: 'precipitation',
+  style: { margin: '10px 0 20px 0', width: '360px' }
+});
+panel.add(parameterSelect);
+
+var analyzeButton = ui.Button({
+  label: 'Calculate Combined Anomalies',
+  onClick: function() { var parameter = parameterSelect.getValue(); if (parameter) { updateVisualizationWithBatching(parameter); } },
+  style: { margin: '10px 0 0 0', width: '360px', fontWeight: 'bold', border: '2px solid black', backgroundColor: '#f0f0f0', color: 'black' }
+});
+panel.add(analyzeButton);
+
+// --- DEBUG TOGGLES ---
+panel.add(ui.Label('Debug Tools:', {fontWeight: 'bold', margin: '15px 0 5px 0'}));
+var debugCheckboxPrecip = ui.Checkbox({ label: 'Show GFS Grid (Precipitation Rate)', value: false });
+var debugCheckboxTemp = ui.Checkbox({ label: 'Show GFS Grid (Temperature)', value: false });
+
+var latestForecastRun = gfsDataset.sort('creation_time', false).first().get('creation_time');
+var latestForecast = gfsDataset.filter(ee.Filter.eq('creation_time', latestForecastRun));
+
+debugCheckboxPrecip.onChange(function(checked) {
+  if (debugLayerPrecip) Map.remove(debugLayerPrecip);
+  if (checked) {
+    debugCheckboxTemp.setValue(false, false); if(debugLayerTemp) Map.remove(debugLayerTemp);
+    var img = latestForecast.filter(ee.Filter.eq('forecast_hours', 6)).first();
+    if(img) {
+       debugLayerPrecip = ui.Map.Layer(img.select('precipitation_rate'), {min:0, max:0.005, palette:['white','blue']}, 'GFS Precip Rate');
+       Map.layers().insert(1, debugLayerPrecip);
+    }
+  }
+});
+debugCheckboxTemp.onChange(function(checked) {
+  if (debugLayerTemp) Map.remove(debugLayerTemp);
+  if (checked) {
+    debugCheckboxPrecip.setValue(false, false); if(debugLayerPrecip) Map.remove(debugLayerPrecip);
+    var img = latestForecast.filter(ee.Filter.eq('forecast_hours', 6)).first();
+    if(img) {
+       debugLayerTemp = ui.Map.Layer(img.select('temperature_2m_above_ground'), {min:0, max:45, palette:['blue','yellow','red']}, 'GFS Temp');
+       Map.layers().insert(1, debugLayerTemp);
+    }
+  }
+});
+panel.add(debugCheckboxPrecip);
+panel.add(debugCheckboxTemp);
+
+var dateInfo = ui.Label({ value: 'Data Sources: NOAA GFS & ECMWF ERA5', style: { fontSize: '11px', margin: '15px 0 0 0', fontStyle: 'italic', color: '#666' }});
+panel.add(dateInfo);
+ui.root.insert(0, panel);
+
+// Legend
+var legend = ui.Panel({ style: { position: 'bottom-left', padding: '8px 15px', border: '1px solid #ccc' } });
+var legendTitle = ui.Label({ value: 'Combined Anomaly Score', style: { fontWeight: 'bold', fontSize: '16px', margin: '0 0 4px 0', padding: '0' } });
+legend.add(legendTitle);
+var colorBar = ui.Thumbnail({ image: ee.Image.pixelLonLat().select(0), params: { bbox: [0, 0, 1, 0.1], dimensions: '250x10', format: 'png', min: 0, max: 1, palette: ['#0000FF', '#00FF00', '#FF0000'] }, style: {stretch: 'horizontal', margin: '0px 8px', maxHeight: '24px'}, });
+legend.add(colorBar);
+var legendLabels = ui.Panel({ widgets: [ ui.Label('Low/Neg', {margin:'4px 8px'}), ui.Label('Normal', {margin: '4px 8px', textAlign: 'center', stretch: 'horizontal'}), ui.Label('High/Pos', {margin: '4px 8px', textAlign: 'right', stretch: 'horizontal'}) ], layout: ui.Panel.Layout.flow('horizontal') });
+legend.add(legendLabels);
+Map.add(legend);
+
+
+// --- UI HELPER FUNCTIONS (Restored exactly as requested) ---
+function showLoadingIndicator(message) {
+  hideLoadingIndicator(); hideDistrictLoadingIndicator();
+  loadingPanel = ui.Panel({ style: { backgroundColor: '#e8f4fd', border: '2px solid #3498db', margin: '10px 0', padding: '15px' } });
+  var loadingTitle = ui.Label({ value: '🔮 Processing Data...', style: { fontSize: '16px', fontWeight: 'bold', color: '#2980b9', margin: '0 0 5px 0' } });
+  loadingLabel = ui.Label({ value: message || 'Analyzing GFS and ERA5 data...', style: { fontSize: '14px', color: '#34495e', margin: '0 0 10px 0' } });
+  var loadingSymbol = ui.Label({ value: '⟳', style: { fontSize: '24px', color: '#3498db', textAlign: 'center', fontWeight: 'bold' } });
+  loadingPanel.add(loadingTitle).add(loadingLabel).add(loadingSymbol);
+  var insertIndex = panel.widgets().indexOf(analyzeButton) + 1;
+  panel.insert(insertIndex, loadingPanel);
+  var rotationSymbols = ['🌍', '🌎', '🌏']; var currentSymbolIndex = 0;
+  var rotateSymbol = function() { if (loadingSymbol && loadingPanel) { currentSymbolIndex = (currentSymbolIndex + 1) % rotationSymbols.length; loadingSymbol.setValue(rotationSymbols[currentSymbolIndex]); ui.util.setTimeout(rotateSymbol, 400); } };
+  ui.util.setTimeout(rotateSymbol, 400);
+}
+function updateLoadingIndicator(message) { if (loadingLabel) { loadingLabel.setValue(message); } }
+function hideLoadingIndicator() { if (loadingPanel) { panel.remove(loadingPanel); loadingPanel = null; loadingLabel = null; } }
+
+function showDistrictLoadingIndicator() {
+  clearPanel(); keepRotating = true;
+  districtInfoPanel = ui.Panel({ style: { backgroundColor: '#e8f4fd', border: '2px solid #3498db', margin: '10px 0', padding: '15px' } });
+  districtInfoTitle = ui.Label({ value: '⏳ Loading District Info...', style: { fontSize: '16px', fontWeight: 'bold', color: '#2980b9', margin: '0 0 5px 0' } });
+  districtLoadingSymbol = ui.Label({ value: '⟳', style: { fontSize: '24px', color: '#3498db', textAlign: 'center', fontWeight: 'bold' } });
+  districtInfoPanel.add(districtInfoTitle).add(districtLoadingSymbol);
+  panel.add(districtInfoPanel); panelDistrictWidgets.push(districtInfoPanel);
+  var rotationSymbols = ['🌍', '🌎', '🌏']; var currentSymbolIndex = 0;
+  var rotateSymbol = function() { if (districtLoadingSymbol && districtInfoPanel && keepRotating === true) { currentSymbolIndex = (currentSymbolIndex + 1) % rotationSymbols.length; districtLoadingSymbol.setValue(rotationSymbols[currentSymbolIndex]); ui.util.setTimeout(rotateSymbol, 300); } };
+  ui.util.setTimeout(rotateSymbol, 300);
+}
+function updateDistrictInfoPanel(title, message) {
+    keepRotating = false; districtInfoTitle.setValue(title); districtLoadingSymbol.setValue('✅');
+    var infoLabel = ui.Label(message, { whiteSpace: 'pre-line', fontSize: '14px', color: '#34495e' });
+    districtInfoPanel.add(infoLabel);
+}
+function hideDistrictLoadingIndicator() { if (districtInfoPanel) { panel.remove(districtInfoPanel); districtInfoPanel = null; } }
+function clearPanel(){ panelDistrictWidgets.forEach(function(widget) { panel.remove(widget); }); panelDistrictWidgets = []; }
+
+function getMonthName(date) {
+  var months = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'];
+  return ee.List(months).get(date.get('month').subtract(1));
+}
+
+// =====================================================================
+//  MASTER CALCULATION LOGIC (PAST + FUTURE COMBINED)
+// =====================================================================
+function calculateCombinedAnomaly(district, parameter, gfsData, historicalData, era5List) {
+  var districtName = ee.Feature(district).get('NAME_3');
+  var districtGeometry = ee.Feature(district).geometry();
+  var districtHistoricalData = historicalData.filter(ee.Filter.eq('district_name', districtName)).first();
+
+  return ee.Algorithms.If(ee.Algorithms.IsEqual(districtHistoricalData, null), 
+    ee.Feature(district).set({ 'combined_diff': -999, 'debug': 'no_historical' }),
+    (function() {
+      
+      // --- PART 1: FUTURE (16-Day Forecast Logic) ---
+      var latestForecastRun = gfsData.sort('creation_time', false).first().get('creation_time');
+      var latestForecast = gfsData.filter(ee.Filter.eq('creation_time', latestForecastRun));
+      var forecastDiff;
+
+      // A. GFS Forecast Value
+      var forecastValue;
+      if (parameter === 'precipitation') {
+        var gfsBand = 'precipitation_rate';
+        // Hourly (0-120)
+        var hourlyValues = ee.List.sequence(1, 120).map(function(hour) {
+          var img = latestForecast.filter(ee.Filter.eq('forecast_hours', hour)).first();
+          return ee.Algorithms.If(img, (function(){
+             var rate = ee.Image(img).select(gfsBand).reduceRegion({reducer: ee.Reducer.mean(), geometry: districtGeometry, scale: 27830, bestEffort: true}).get(gfsBand);
+             return ee.Number(ee.Algorithms.If(rate, rate, 0)).multiply(3600);
+          })(), 0);
+        });
+        // 3-Hourly (123-384)
+        var threeValues = ee.List.sequence(123, 384, 3).map(function(hour) {
+          var img = latestForecast.filter(ee.Filter.eq('forecast_hours', hour)).first();
+          return ee.Algorithms.If(img, (function(){
+             var rate = ee.Image(img).select(gfsBand).reduceRegion({reducer: ee.Reducer.mean(), geometry: districtGeometry, scale: 27830, bestEffort: true}).get(gfsBand);
+             return ee.Number(ee.Algorithms.If(rate, rate, 0)).multiply(10800);
+          })(), 0);
+        });
+        forecastValue = ee.Number(hourlyValues.reduce(ee.Reducer.sum())).add(ee.Number(threeValues.reduce(ee.Reducer.sum())));
+      } else { // Temp
+        var meanImg = latestForecast.select('temperature_2m_above_ground').mean();
+        var val = meanImg.reduceRegion({reducer: ee.Reducer.mean(), geometry: districtGeometry, scale: 27830, bestEffort: true}).get('temperature_2m_above_ground');
+        forecastValue = ee.Number(ee.Algorithms.If(val, val, 0)); 
+      }
+
+      // B. Weighted Historical Baseline (Forecast Period)
+      var startDay = today.get('day');
+      var startMonth = today.get('month');
+      var endMonth = forecastEndDate.get('month');
+      var histForecastValue;
+      
+      if (parameter === 'precipitation') {
+         var cols = ee.List(['rainfall_jan', 'rainfall_feb', 'rainfall_mar', 'rainfall_apr', 'rainfall_may', 'rainfall_jun','rainfall_jul', 'rainfall_aug', 'rainfall_sep', 'rainfall_oct', 'rainfall_nov', 'rainfall_dec']);
+         histForecastValue = ee.Number(ee.Algorithms.If(startMonth.neq(endMonth),
+            (function(){
+               var daysList = ee.List([31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]);
+               var d1Total = ee.Number(daysList.get(startMonth.subtract(1)));
+               var d1Current = d1Total.subtract(startDay).add(1);
+               var v1 = ee.Number(districtHistoricalData.get(cols.get(startMonth.subtract(1))));
+               var p1 = v1.divide(d1Total).multiply(d1Current);
+               var d2Current = ee.Number(16).subtract(d1Current);
+               var d2Total = ee.Number(daysList.get(endMonth.subtract(1)));
+               var v2 = ee.Number(districtHistoricalData.get(cols.get(endMonth.subtract(1))));
+               var p2 = v2.divide(d2Total).multiply(d2Current);
+               return p1.add(p2);
+            })(),
+            (function(){
+               var v = ee.Number(districtHistoricalData.get(cols.get(startMonth.subtract(1))));
+               return v.divide(30).multiply(16); 
+            })()
+         ));
+      } else { // Temp Weighted
+         var cols = ee.List(['temperature_jan', 'temperature_feb', 'temperature_mar', 'temperature_apr', 'temperature_may', 'temperature_jun','temperature_jul', 'temperature_aug', 'temperature_sep', 'temperature_oct', 'temperature_nov', 'temperature_dec']);
+         histForecastValue = ee.Number(ee.Algorithms.If(startMonth.neq(endMonth),
+            (function(){
+               var d1Current = ee.Number(30).subtract(startDay).add(1);
+               var v1 = ee.Number(districtHistoricalData.get(cols.get(startMonth.subtract(1))));
+               var d2Current = ee.Number(16).subtract(d1Current);
+               var v2 = ee.Number(districtHistoricalData.get(cols.get(endMonth.subtract(1))));
+               return (v1.multiply(d1Current).add(v2.multiply(d2Current))).divide(16);
+            })(),
+            ee.Number(districtHistoricalData.get(cols.get(startMonth.subtract(1))))
+         ));
+      }
+      forecastDiff = forecastValue.subtract(histForecastValue);
+
+
+      // --- PART 2: PAST (3-Month ERA5 Logic) ---
+      var calculateEraDiff = function(img) {
+         var eraDate = ee.Date(ee.Image(img).get('system:time_start'));
+         var mColName = getMonthName(eraDate);
+         var histCol = parameter === 'precipitation' ? 
+             ee.String('rainfall_').cat(mColName) : 
+             ee.String('temperature_').cat(mColName);
+         
+         var histVal = ee.Number(districtHistoricalData.get(histCol));
+         
+         var band = parameter === 'precipitation' ? 'total_precipitation_sum' : 'temperature_2m';
+         var obsVal = ee.Image(img).select(band).reduceRegion({
+             reducer: ee.Reducer.mean(),
+             geometry: districtGeometry, scale: 11132, bestEffort: true
+         }).get(band);
+         
+         // Unit Conversion & Null Handling
+         var obsNum = ee.Number(ee.Algorithms.If(obsVal, obsVal, 0));
+         if (parameter === 'precipitation') {
+             obsNum = obsNum.multiply(1000); // m to mm
+         } else {
+             obsNum = ee.Number(ee.Algorithms.If(obsVal, obsNum.subtract(273.15), histVal)); // K to C
+         }
+         return obsNum.subtract(histVal);
+      };
+
+      // Apply to the 3 images available in the list
+      var diff1 = calculateEraDiff(era5List.get(0));
+      var diff2 = calculateEraDiff(era5List.get(1));
+      var diff3 = calculateEraDiff(era5List.get(2));
+      var pastDiffTotal = diff1.add(diff2).add(diff3);
+      
+      // --- PART 3: COMBINE ---
+      var finalCombinedDiff = forecastDiff.add(pastDiffTotal);
+
+      return ee.Feature(district).set({
+        'combined_diff': finalCombinedDiff,
+        'forecast_diff': forecastDiff,
+        'past_diff': pastDiffTotal,
+        'district_name': districtName
+      });
+
+    })()
+  );
+}
+
+
+// --- BATCH PROCESSING ---
+function updateVisualizationWithBatching(parameter) {
+  Map.unlisten(); Map.layers().reset([Map.layers().get(0)]);
+  showLoadingIndicator("Processing Combined Forecast & History... (Batch Mode)");
+  
+  var era5List = latestEra5Images.toList(3); // Get list for mapping
+
+  pakistanDistricts.toList(pakistanDistricts.size()).evaluate(function(districtsList) {
+    var BATCH_SIZE = 5; var processedFeatures = []; var total = districtsList.length;
+    var numBatches = Math.ceil(total / BATCH_SIZE);
+
+    function processBatch(startIndex) {
+      if (startIndex >= total) { finalizeVisualization(processedFeatures, parameter); return; }
+      var currentBatchNumber = Math.floor(startIndex / BATCH_SIZE) + 1;
+      updateLoadingIndicator("Processing Batch " + currentBatchNumber + " of " + numBatches + "...");
+      
+      var end = Math.min(startIndex + BATCH_SIZE, total);
+      var batchCol = ee.FeatureCollection(districtsList.slice(startIndex, end));
+      
+      var result = batchCol.map(function(d) { 
+          return calculateCombinedAnomaly(d, parameter, gfsDataset, dataFC, era5List); 
+      });
+
+      result.evaluate(function(batch, err) {
+        if (err) { print('Batch Err:', err); } 
+        else if (batch && batch.features) { processedFeatures = processedFeatures.concat(batch.features); }
+        ui.util.setTimeout(function() { processBatch(end); }, 100);
+      });
+    }
+    processBatch(0);
+  });
+}
+
+function finalizeVisualization(features, parameter) {
+  updateLoadingIndicator("Finalizing Map...");
+  var valid = features.filter(function(f) { return f.properties.combined_diff !== -999 && f.properties.combined_diff !== undefined && f.properties.combined_diff !== null; });
+  if (valid.length === 0) { print("No valid data."); hideLoadingIndicator(); return; }
+  
+  var fc = ee.FeatureCollection(valid);
+  var diffs = fc.aggregate_array('combined_diff');
+  
+  diffs.evaluate(function(d) {
+    var max = d.reduce(function(a, b) { return Math.max(Math.abs(a), Math.abs(b)); }, 0);
+    if(max === 0) max = 1;
+    
+    var painted = ee.Image(0).mask(0).paint({ featureCollection: fc, color: 'combined_diff' });
+    Map.addLayer(painted, { min: -max, max: max, palette: ['#0000FF', '#00FF00', '#FF0000'] }, 'Combined Risk Score');
+    Map.addLayer(pakistanDistricts.style({color: '000000', width: 1, fillColor: '00000000'}), {}, 'Boundaries');
+    
+    addClickHandler(fc, parameter);
+    hideLoadingIndicator();
+  });
+}
+
+function addClickHandler(fc, parameter) {
+  Map.onClick(function(coords) {
+    clearPanel(); // Clear previous using the helper
+    showDistrictLoadingIndicator();
+    var point = ee.Geometry.Point([coords.lon, coords.lat]);
+    var clicked = fc.filterBounds(point).first();
+    
+    clicked.evaluate(function(f) {
+      if (f && f.properties) {
+        var p = f.properties;
+        var unit = parameter === 'precipitation' ? 'mm' : '°C';
+        
+        // Format logic for direction
+        var dir = '';
+        if (p.combined_diff !== null) {
+           dir = p.combined_diff > 0 ? ' (Positive Anomaly)' : p.combined_diff < 0 ? ' (Negative Anomaly)' : ' (Normal)';
+        }
+
+        var msg = 'District: ' + p.district_name + '\n' +
+                  '----------------------------------\n' +
+                  'Past 3-Months Anomaly: ' + (p.past_diff ? p.past_diff.toFixed(2) : 'N/A') + ' ' + unit + '\n' +
+                  'Next 16-Days Anomaly: ' + (p.forecast_diff ? p.forecast_diff.toFixed(2) : 'N/A') + ' ' + unit + '\n' +
+                  '----------------------------------\n' +
+                  'TOTAL COMBINED SCORE: ' + (p.combined_diff ? p.combined_diff.toFixed(2) : 'N/A') + ' ' + unit + dir;
+        
+        updateDistrictInfoPanel("Combined Analysis", msg);
+      } else {
+        updateDistrictInfoPanel("No Data", "No data for this location.");
+      }
+    });
+  });
+}
+
+// --- INITIAL MAP ---
+Map.setCenter(69.3451, 30.3753, 6);
+Map.addLayer(pakistanDistricts.style({color: 'gray', width: 1, fillColor: '00000000'}), {}, 'Pakistan Districts');
+print("Combined System Ready.");
