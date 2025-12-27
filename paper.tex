@@ -1,0 +1,206 @@
+\documentclass[preprint,12pt]{elsarticle}
+
+\usepackage{amssymb}
+\usepackage{amsmath}
+\usepackage{float} % Add this package for better figure control
+
+\journal{Remote Sensing Applications: Society and Environment}
+
+\begin{document}
+
+\begin{frontmatter}
+
+\title{District-Level Weather Anomalies in Pakistan: Historical Patterns, Near-Real-Time Monitoring, and Forecast-Based Anomaly Detection}
+
+\author{Ghulam Mustafa}
+
+\affiliation{organization={Habib University}, 
+            city={Karachi},
+            country={Pakistan}}
+
+%% Abstract
+\begin{abstract}
+The paper presents a suite of related Google Earth Engine applications that track long-term trends in rainfall and temperature anomalies across all districts of Pakistan, provide near real-time monitoring of weather anomalies, and compare forecast data with historical baselines to provide early warning of anomalous conditions developing in any district of Pakistan. These applications utilize the ERA5-Land Monthly Aggregated dataset (1981–present) for historical climatology and the GFS (Global Forecast System) 384-Hour Predicted Atmosphere Data for 16-day weather forecasts. The applications compute climatological baselines and identify anomalous conditions for each district, based on user-defined anomaly thresholds. They visualize trends, anomaly counts, and forecast deviations through time-series charts and spatial maps. These tools are intended to support data-driven climate resilience planning as well as climate-aware operations in the domains of agriculture, water management, and disaster preparedness. A case study of the 2010 floods is presented to demonstrate the utility of the tools.
+\end{abstract}
+
+%% Graphical abstract
+\begin{graphicalabstract}
+% \includegraphics{graphical-abstract.png}
+\end{graphicalabstract}
+
+%% Research highlights
+\begin{highlights}
+\item District-level anomaly detection using ERA5-Land dataset (1981–present).
+\item GEE web app for real-time climate monitoring in Pakistan.
+\item District-level anomaly heatmap visualization (2015–present).
+\item Case study: 2010 floods highlight anomaly-based early warning.
+\item Supports agriculture, water management, and disaster preparedness.
+\end{highlights}
+
+%% Keywords
+\begin{keyword}
+climate anomalies \sep ERA5-Land Dataset \sep Pakistan weather patterns \sep Google Earth Engine \sep flood early warning
+\end{keyword}
+
+\end{frontmatter}
+
+%% ---------------- Main Text ----------------
+
+\section{Introduction}
+- Background on climate change impacts in Pakistan.  
+- Importance of detecting rainfall and temperature anomalies.  
+- Role of Google Earth Engine for large-scale monitoring.  
+- Contributions of this paper (apps + case study).
+
+\section{Data and Methods}
+\subsection{Datasets}
+- ERA5-Land Monthly Aggregated dataset (1981–present).  
+- Other datasets (Dataset B, Dataset C – specify when confirmed).  
+
+\subsection{Study Area}
+- Pakistan, district-level resolution.  
+- Brief climate zones.  
+
+\subsection{Anomaly Detection Method}
+Anomalies are identified by first computing the long-term monthly climatology for rainfall and temperature. For each district and each month, the average climatological baseline is established. User-defined thresholds (above and below, expressed as percentages) are then applied to create an acceptable range around this baseline. Any observed monthly value lying outside this range is flagged as an anomaly.  
+
+\subsection{Application 1: District-Level Temperature and Rainfall Anomalies in Pakistan: Historical Pattern Analysis}
+This application is designed to analyze long-term patterns of anomalies across districts. The user can:
+\begin{itemize}
+    \item Select a district from a dropdown menu.
+    \item Specify a start year and an end year for analysis.
+    \item Set anomaly thresholds (above and below) for both rainfall and temperature.
+\end{itemize}
+
+The application performs the following steps:
+\begin{enumerate}
+    \item \textbf{Load ERA5-Land Dataset}: The application loads the ERA5-Land Monthly Aggregated dataset containing total precipitation and temperature bands for the period 1984--present.
+    \item \textbf{Compute Climatological Baseline}: For the selected district, the application calculates baseline monthly averages using a 30-year reference period (1991--2020). This baseline represents the expected climatological values for each month.
+    \item \textbf{Extract Monthly Values}: For each year in the user-specified analysis period, the application extracts monthly rainfall (converted to mm) and temperature (converted to Celsius) values for the selected district geometry using spatial reduction operations.
+    \item \textbf{Calculate Analysis Period Averages}: Monthly averages are computed specifically for the user-selected year range, providing the average rainfall and temperature for each month across the analysis period.
+    \item \textbf{Define Anomaly Thresholds}: Upper and lower bounds for acceptable values are calculated by applying the user-defined percentage thresholds to the baseline averages. For example, if the baseline for July rainfall is 100mm and the user sets a 20\% threshold, values outside the 80--120mm range are flagged as anomalies.
+    \item \textbf{Count Anomalies Per Year}: For each year in the analysis period, the application counts how many months had rainfall or temperature values exceeding the defined thresholds.
+    \item \textbf{Generate Visualizations}: The application outputs:
+    \begin{itemize}
+        \item Average monthly rainfall time-series chart.
+        \item Average monthly temperature time-series chart.
+        \item Count of rainfall anomalies per year.
+        \item Count of temperature anomalies per year.
+        \item A combined anomalies trend graph showing both rainfall and temperature anomaly counts over time.
+    \end{itemize}
+\end{enumerate}
+
+This application enables researchers to identify districts with increasing or decreasing anomaly trends and to understand seasonal patterns in climate variability.
+
+\subsection{Application 2: District-Level Temperature and Rainfall Anomalies in Pakistan: Near Real-Time Monitoring}
+This application focuses on near real-time anomaly monitoring across Pakistan. The user can:
+\begin{itemize}
+    \item Select a parameter (rainfall or temperature).
+    \item Choose a month from the latest three available months (dynamically populated based on ERA5 data availability).
+\end{itemize}
+
+The application performs the following steps:
+\begin{enumerate}
+    \item \textbf{Fetch Latest Data}: The application queries the ERA5-Land Monthly Aggregated dataset and retrieves the three most recent monthly images based on their timestamps.
+    \item \textbf{Populate Month Dropdown}: The month names are dynamically extracted from the retrieved images and displayed in the dropdown menu, with the most recent month labeled as ``Latest.''
+    \item \textbf{Load Pre-computed Historical Averages}: Historical monthly averages for each district (computed from 2014--2024 ERA5 data) are stored as a GEE Feature Collection asset and loaded for comparison.
+    \item \textbf{Extract Current Values}: For the user-selected month, the application extracts the current rainfall (in mm) or temperature (in Celsius) for each district using mean reduction over the district geometry.
+    \item \textbf{Batch Processing}: To avoid browser timeouts with 150+ districts, the application processes districts in batches of 5, with a short delay between batches. This ensures stable execution even with limited computational resources.
+    \item \textbf{Calculate Differences}: For each district, the difference between the current month's value and the corresponding historical monthly average is computed.
+    \item \textbf{Determine Visualization Range}: The application calculates the maximum absolute difference across all districts to create a symmetric color scale centered at zero (historical average).
+    \item \textbf{Visualize Results}: Districts are painted on the map with colors representing their deviation from historical averages:
+    \begin{itemize}
+        \item \textbf{Blue}: Current value significantly below historical average.
+        \item \textbf{Green}: Current value near historical average.
+        \item \textbf{Red}: Current value significantly above historical average.
+    \end{itemize}
+    \item \textbf{Interactive Click Handler}: Users can click on any district to view detailed information including the district name, current value, historical average, and the difference between them.
+\end{enumerate}
+
+This color-coded visualization allows users to rapidly identify districts experiencing unusual weather conditions in near real-time, supporting timely decision-making for agriculture, water management, and disaster response.
+
+\subsection{Application 3: District-Level Weather Anomalies in Pakistan: Forecast}
+This application compares 16-day weather forecasts from the GFS (Global Forecast System) dataset with pre-computed historical monthly averages to identify forecast-based anomalies across all districts of Pakistan. The user can:
+\begin{itemize}
+    \item Select a weather parameter (temperature or precipitation).
+    \item Click the \textit{Visualize Forecast} button to generate the anomaly map.
+\end{itemize}
+
+The application performs the following steps:
+\begin{enumerate}
+    \item \textbf{Retrieve Forecast Data}: The application fetches the latest GFS forecast data covering the next 16 days (384 hours). For precipitation, it aggregates hourly and three-hourly precipitation rates across all forecast hours. For temperature, it computes the mean temperature across all forecast time steps.
+    \item \textbf{Load Pre-computed Historical Averages}: Monthly historical averages for each district, computed from the ERA5-Land dataset (2014–2024), are stored as a GEE asset and loaded for comparison.
+    \item \textbf{Handle Month Overlapping}: Since the 16-day forecast period may span two calendar months, the application calculates a weighted historical average. It determines the number of days falling within each month, retrieves the corresponding monthly historical values, and computes a proportionally weighted average to represent the expected 16-day historical baseline.
+    \item \textbf{Compute Forecast Anomaly}: The difference between the 16-day forecast value and the 16-day equivalent historical average is calculated for each district.
+    \item \textbf{Visualize Results}: Districts are color-coded on the map based on their anomaly values:
+    \begin{itemize}
+        \item \textbf{Blue}: Forecast value is below the historical average.
+        \item \textbf{Green}: Forecast value is near the historical average.
+        \item \textbf{Red}: Forecast value is above the historical average.
+    \end{itemize}
+\end{enumerate}
+
+Users can click on any district to view detailed information including the 16-day forecast value, the 16-day historical equivalent average, and the difference between them. This application provides an early warning capability by identifying districts where upcoming weather conditions are expected to deviate significantly from historical norms.
+
+\section{Results}
+\subsection{Application 1: Historical Anomalies Explorer}
+- Time-series graphs (rainfall, temperature, anomaly counts).  
+- Visualization examples for selected districts.  
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.8\textwidth]{historicalpatterndistrictlevel.png}
+    \caption{Visualization of district-level rainfall and temperature historical anomalies pattern for the time period of 1984 to 2000 in Abbotabad using the District Level Historical Analysis App.}
+    \label{fig:historicalpattern-app}
+\end{figure}
+
+\subsection{Application 2: Real-Time Monitoring}
+- Current status and preliminary outputs.  
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.8\textwidth]{nearrealtimedistrictlevel.png}
+    \caption{Visualization of district-level rainfall anomalies for August 2025 using the Near Real-Time Monitoring application. Blue indicates below-average values, green indicates near-average values, and red indicates above-average values.}
+    \label{fig:nearrealtime-app}
+\end{figure}
+
+\subsection{Application 3: Forecast-Based Anomaly Detection}
+- Comparison of 16-day GFS forecast with historical averages.
+- Early warning visualization for upcoming anomalous conditions.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.8\textwidth]{forecastanomalyapp.png}
+    \caption{Visualization of 16-day forecast anomalies for Pakistan using the Forecast Anomaly Detection App. Blue indicates forecast values below historical average, green indicates near-average values, and red indicates forecast values above historical average.}
+    \label{fig:forecast-app}
+\end{figure}
+
+\section{Case Study: 2010 Pakistan Floods}
+- Brief background of the 2010 floods.  
+- How anomaly detection captures pre-flood signals.  
+- District-level anomaly patterns before/during flood.  
+- Implications for early warning.  
+
+\section{Discussion}
+- Interpretation of results.  
+- Limitations of current approach.  
+- Future improvements (e.g., integrating forecasts, finer resolution).  
+
+\section{Conclusion}
+- Summary of contributions.  
+- Potential applications in agriculture, water management, disaster preparedness.  
+- Next steps for research.  
+
+%% ---------------- References ----------------
+\begin{thebibliography}{00}
+
+\bibitem{lamport94}
+  Leslie Lamport,
+  \textit{\LaTeX: a document preparation system},
+  Addison Wesley, Massachusetts,
+  2nd edition,
+  1994.
+
+\end{thebibliography}
+
+\end{document}
