@@ -30,11 +30,11 @@ The paper presents a suite of related Google Earth Engine applications that trac
 
 %% Research highlights
 \begin{highlights}
-\item District-level anomaly detection using ERA5-Land dataset (1981–present).
-\item GEE web app for real-time climate monitoring in Pakistan.
-\item District-level anomaly heatmap visualization (2015–present).
-\item Case study: 2010 floods highlight anomaly-based early warning.
-\item Supports agriculture, water management, and disaster preparedness.
+\item Application 1: Long-term historical anomaly pattern analysis using ERA5-Land dataset (1981–present).
+\item Application 2: Near real-time monitoring comparing current conditions with historical baselines.
+\item Application 3: 16-day forecast anomaly detection using GFS data compared with historical averages.
+\item Case study: 2010 Pakistan floods demonstrate early warning potential.
+\item Supports climate-informed decision-making in agriculture, water management, and disaster preparedness.
 \end{highlights}
 
 %% Keywords
@@ -54,15 +54,21 @@ climate anomalies \sep ERA5-Land Dataset \sep Pakistan weather patterns \sep Goo
 
 \section{Data and Methods}
 \subsection{Datasets}
-- ERA5-Land Monthly Aggregated dataset (1981–present).  
-- Other datasets (Dataset B, Dataset C – specify when confirmed).  
+This study utilizes two primary datasets for climate analysis and forecasting:
+
+\textbf{ERA5-Land Monthly Aggregated Dataset (1981–present):} ERA5-Land is a reanalysis dataset produced by the European Centre for Medium-Range Weather Forecasts (ECMWF). It provides global land surface variables at approximately 9~km (0.1°) spatial resolution. This study uses the monthly aggregated version available through Google Earth Engine, specifically extracting the \texttt{total\_precipitation\_sum} (total monthly precipitation in meters) and \texttt{temperature\_2m} (air temperature at 2 meters above the surface in Kelvin) bands. The dataset's long temporal coverage (1981–present) enables robust climatological baseline calculations.
+
+\textbf{GFS: Global Forecast System 384-Hour Predicted Atmosphere Data:} The GFS is a global numerical weather prediction system operated by the National Oceanic and Atmospheric Administration (NOAA). It provides forecast data at 0.25° spatial resolution with predictions extending up to 384 hours (16 days) into the future. This study uses the \texttt{precipitation\_rate} (kg/m²/s) and \texttt{temperature\_2m\_above\_ground} (K) variables. Hourly forecasts are available for the first 120 hours, followed by 3-hourly forecasts for hours 123–384.
 
 \subsection{Study Area}
-- Pakistan, district-level resolution.  
-- Brief climate zones.  
+The study area encompasses all districts of Pakistan, providing district-level spatial resolution for climate anomaly analysis. Pakistan's diverse geography includes multiple climate zones ranging from arid and semi-arid regions in the south and west to humid subtropical and alpine climates in the north. This climatic diversity makes district-level analysis essential for capturing localized weather patterns and anomalies.
 
-\subsection{Anomaly Detection Method}
-Anomalies are identified by first computing the long-term monthly climatology for rainfall and temperature. For each district and each month, the average climatological baseline is established. User-defined thresholds (above and below, expressed as percentages) are then applied to create an acceptable range around this baseline. Any observed monthly value lying outside this range is flagged as an anomaly.  
+\subsection{Anomaly Detection Methods}
+The applications employ two complementary approaches for anomaly detection:
+
+\textbf{Threshold-Based Anomaly Detection (Application 1):} For long-term historical analysis, anomalies are identified by first computing the long-term monthly climatology for rainfall and temperature using a 30-year baseline period (1991–2020). For each district and each month, the average climatological baseline is established. User-defined thresholds (above and below, expressed as percentages) are then applied to create an acceptable range around this baseline. Any observed monthly value lying outside this range is flagged as an anomaly. This approach enables counting and tracking anomaly frequency over time.
+
+\textbf{Difference-Based Visualization (Applications 2 and 3):} For near real-time monitoring and forecast-based analysis, the applications compute the direct difference between current/forecast values and historical averages without applying percentage thresholds. These differences are visualized on a continuous color scale where blue indicates values below the historical average, green indicates values near the historical average, and red indicates values above the historical average. This approach provides an intuitive visual representation of how current or forecast conditions deviate from expected climatological norms.
 
 \subsection{Application 1: District-Level Temperature and Rainfall Anomalies in Pakistan: Historical Pattern Analysis}
 This application is designed to analyze long-term patterns of anomalies across districts. The user can:
@@ -159,8 +165,8 @@ Users can click on any district to view detailed information including the 16-da
 
 \begin{figure}[H]
     \centering
-    \includegraphics[width=0.8\textwidth]{nearrealtimedistrictlevel.png}
-    \caption{Visualization of district-level rainfall anomalies for August 2025 using the Near Real-Time Monitoring application. Blue indicates below-average values, green indicates near-average values, and red indicates above-average values.}
+    \includegraphics[width=0.8\textwidth]{district level near real time.png}
+    \caption{Visualization of district-level rainfall anomalies for November 2025 using the Near Real-Time Monitoring application. Blue indicates below-average values, green indicates near-average values, and red indicates above-average values.}
     \label{fig:nearrealtime-app}
 \end{figure}
 
@@ -170,7 +176,7 @@ Users can click on any district to view detailed information including the 16-da
 
 \begin{figure}[H]
     \centering
-    \includegraphics[width=0.8\textwidth]{forecastanomalyapp.png}
+    \includegraphics[width=0.8\textwidth]{GFS forecast vs historical.png}
     \caption{Visualization of 16-day forecast anomalies for Pakistan using the Forecast Anomaly Detection App. Blue indicates forecast values below historical average, green indicates near-average values, and red indicates forecast values above historical average.}
     \label{fig:forecast-app}
 \end{figure}
