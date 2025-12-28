@@ -20,7 +20,7 @@
 
 %% Abstract
 \begin{abstract}
-The paper presents a suite of related Google Earth Engine applications that track long-term trends in rainfall and temperature anomalies across all districts of Pakistan, provide near real-time monitoring of weather anomalies, and compare forecast data with historical baselines to provide early warning of anomalous conditions developing in any district of Pakistan. These applications utilize the ERA5-Land Monthly Aggregated dataset (1981–present) for historical climatology and the GFS (Global Forecast System) 384-Hour Predicted Atmosphere Data for 16-day weather forecasts. The applications compute climatological baselines and identify anomalous conditions for each district, based on user-defined anomaly thresholds. They visualize trends, anomaly counts, and forecast deviations through time-series charts and spatial maps. These tools are intended to support data-driven climate resilience planning as well as climate-aware operations in the domains of agriculture, water management, and disaster preparedness. A case study of the 2010 floods is presented to demonstrate the utility of the tools.
+The paper presents a suite of four related Google Earth Engine applications that track long-term trends in rainfall and temperature anomalies across all districts of Pakistan, provide near real-time monitoring of weather anomalies, compare forecast data with historical baselines, and compute cumulative anomaly scores by combining recent past conditions with future forecasts. These applications utilize the ERA5-Land Monthly Aggregated dataset (1981--present) for historical climatology and the GFS (Global Forecast System) 384-Hour Predicted Atmosphere Data for 16-day weather forecasts. The applications compute climatological baselines and identify anomalous conditions for each district through threshold-based detection and difference-based visualization. They visualize trends, anomaly counts, forecast deviations, and cumulative risk scores through time-series charts and spatial maps. These tools are intended to support data-driven climate resilience planning as well as climate-aware operations in the domains of agriculture, water management, and disaster preparedness. A case study of the 2010 floods is presented to demonstrate the utility of the tools.
 \end{abstract}
 
 %% Graphical abstract
@@ -33,8 +33,8 @@ The paper presents a suite of related Google Earth Engine applications that trac
 \item Application 1: Long-term historical anomaly pattern analysis using ERA5-Land dataset (1981–present).
 \item Application 2: Near real-time monitoring comparing current conditions with historical baselines.
 \item Application 3: 16-day forecast anomaly detection using GFS data compared with historical averages.
+\item Application 4: Cumulative anomaly score combining past months' deviations with forecast anomalies.
 \item Case study: 2010 Pakistan floods demonstrate early warning potential.
-\item Supports climate-informed decision-making in agriculture, water management, and disaster preparedness.
 \end{highlights}
 
 %% Keywords
@@ -64,11 +64,13 @@ This study utilizes two primary datasets for climate analysis and forecasting:
 The study area encompasses all districts of Pakistan, providing district-level spatial resolution for climate anomaly analysis. Pakistan's diverse geography includes multiple climate zones ranging from arid and semi-arid regions in the south and west to humid subtropical and alpine climates in the north. This climatic diversity makes district-level analysis essential for capturing localized weather patterns and anomalies.
 
 \subsection{Anomaly Detection Methods}
-The applications employ two complementary approaches for anomaly detection:
+The applications employ three complementary approaches for anomaly detection:
 
 \textbf{Threshold-Based Anomaly Detection (Application 1):} For long-term historical analysis, anomalies are identified by first computing the long-term monthly climatology for rainfall and temperature using a 30-year baseline period (1991–2020). For each district and each month, the average climatological baseline is established. User-defined thresholds (above and below, expressed as percentages) are then applied to create an acceptable range around this baseline. Any observed monthly value lying outside this range is flagged as an anomaly. This approach enables counting and tracking anomaly frequency over time.
 
 \textbf{Difference-Based Visualization (Applications 2 and 3):} For near real-time monitoring and forecast-based analysis, the applications compute the direct difference between current/forecast values and historical averages without applying percentage thresholds. These differences are visualized on a continuous color scale where blue indicates values below the historical average, green indicates values near the historical average, and red indicates values above the historical average. This approach provides an intuitive visual representation of how current or forecast conditions deviate from expected climatological norms.
+
+\textbf{Cumulative Anomaly Scoring (Application 4):} For combined risk assessment, the application computes a cumulative anomaly score by summing the deviations from historical averages across both recent past months (from ERA5) and the upcoming 16-day forecast period (from GFS). This additive approach captures the combined effect of ongoing and anticipated anomalous conditions, providing a holistic measure of cumulative climate risk for each district.
 
 \subsection{Application 1: District-Level Temperature and Rainfall Anomalies in Pakistan: Historical Pattern Analysis}
 This application is designed to analyze long-term patterns of anomalies across districts. The user can:
@@ -148,6 +150,29 @@ The application performs the following steps:
 
 Users can click on any district to view detailed information including the 16-day forecast value, the 16-day historical equivalent average, and the difference between them. This application provides an early warning capability by identifying districts where upcoming weather conditions are expected to deviate significantly from historical norms.
 
+\subsection{Application 4: District-Level Weather Anomalies in Pakistan: Forecast + History}
+This application calculates a cumulative anomaly score by combining recent past conditions with future forecasts to provide a comprehensive risk assessment. The user can:
+\begin{itemize}
+    \item Select a weather parameter (temperature or precipitation).
+    \item Select the past duration to include (last 1, 2, or 3 months).
+    \item Click the \textit{Calculate Combined Anomalies} button to generate the cumulative risk map.
+\end{itemize}
+
+The application performs the following steps:
+\begin{enumerate}
+    \item \textbf{Calculate Past Anomalies (ERA5)}: For each of the user-selected past months, the application retrieves the observed monthly value from ERA5 and computes the difference from the corresponding historical monthly average. These individual month differences are summed to produce a total past anomaly score.
+    \item \textbf{Calculate Forecast Anomaly (GFS)}: Using the same 16-day forecast methodology as Application 3, the application computes the difference between the forecast value and the 16-day historical equivalent, handling month overlaps with weighted averages.
+    \item \textbf{Compute Cumulative Score}: The cumulative anomaly is calculated by summing the deviations of each selected past month from its historical average, and then adding the deviation of the 16-day forecast from its historical equivalent. For example, if the user selects 3 past months, the application sums the three individual monthly differences and adds the forecast difference to produce a single cumulative anomaly value for each district.
+    \item \textbf{Visualize Results}: Districts are color-coded based on their cumulative anomaly score:
+    \begin{itemize}
+        \item \textbf{Blue}: Overall below-average conditions (past + forecast).
+        \item \textbf{Green}: Overall near-average conditions.
+        \item \textbf{Red}: Overall above-average conditions.
+    \end{itemize}
+\end{enumerate}
+
+Users can click on any district to view a breakdown showing the past months' anomaly, the forecast anomaly, and the combined cumulative score. This application is particularly useful for identifying districts experiencing persistent anomalous conditions that are expected to continue, enabling proactive planning for agriculture, water management, and disaster preparedness.
+
 \section{Results}
 \subsection{Application 1: Historical Anomalies Explorer}
 - Time-series graphs (rainfall, temperature, anomaly counts).  
@@ -179,6 +204,17 @@ Users can click on any district to view detailed information including the 16-da
     \includegraphics[width=0.8\textwidth]{GFS forecast vs historical.png}
     \caption{Visualization of 16-day forecast anomalies for Pakistan using the Forecast Anomaly Detection App. Blue indicates forecast values below historical average, green indicates near-average values, and red indicates forecast values above historical average.}
     \label{fig:forecast-app}
+\end{figure}
+
+\subsection{Application 4: Combined Past + Forecast Anomaly}
+- Cumulative anomaly visualization combining recent past and forecast deviations.
+- Identifies districts with persistent anomalous conditions.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.8\textwidth]{combined_forecast_historical.png}
+    \caption{Visualization of cumulative anomaly scores for Pakistan using the Combined Forecast + History App. The map shows the sum of past 3 months' deviations and the 16-day forecast anomaly. Blue indicates overall below-average conditions, green indicates near-average, and red indicates overall above-average conditions.}
+    \label{fig:combined-app}
 \end{figure}
 
 \section{Case Study: 2010 Pakistan Floods}
