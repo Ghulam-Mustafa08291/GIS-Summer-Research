@@ -39,7 +39,7 @@ print("Analysis: Dynamic Past Duration + Next 16 Days (GFS)");
 
 // --- UI SETUP ---
 var panel = ui.Panel({ style: {width: '400px', padding: '20px'} });
-panel.add(ui.Label({value: 'Combined Climate Risk: Forecast + History', style: {fontSize: '20px', fontWeight: 'bold', margin: '0 0 20px 0'}}));
+panel.add(ui.Label({value: 'District-Level Weather Anomalies in Pakistan: Forecast + History', style: {fontSize: '20px', fontWeight: 'bold', margin: '0 0 20px 0'}}));
 
 panel.add(ui.Label({
   value: 'This tool calculates a "Cumulative Anomaly" by combining:\n' +
