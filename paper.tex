@@ -52,6 +52,36 @@ climate anomalies \sep ERA5-Land Dataset \sep Pakistan weather patterns \sep Goo
 - Role of Google Earth Engine for large-scale monitoring.  
 - Contributions of this paper (apps + case study).
 
+\section{Related Work}
+Several platforms and tools have been developed for climate monitoring and anomaly detection at various spatial scales. This section reviews existing global platforms and Pakistan-specific tools, identifying gaps that motivate the present work.
+
+\subsection{Global Platforms}
+\textbf{Climate Engine} (https://climateengine.org) is a web-based platform built on Google Earth Engine that provides access to climate and remote sensing data including ERA5, Landsat, and MODIS datasets. Developed through a collaboration between the Desert Research Institute, University of California Merced, and Google, it enables users to compute drought indices such as SPI, SPEI, and EDDI. However, Climate Engine is designed for general-purpose global analysis and does not provide pre-configured district-level analysis for Pakistan or forecast-based anomaly detection.
+
+\textbf{FAO GIEWS Earth Observation} (https://www.fao.org/giews/earthobservation/) provides near real-time monitoring of vegetation conditions using NDVI, Vegetation Condition Index (VCI), and Vegetation Health Index (VHI). The platform updates every 10 days and includes agricultural stress indices and historic drought frequency analysis. While it covers Pakistan at the country level, it focuses primarily on vegetation health rather than direct temperature and precipitation anomalies, and does not provide district-level granularity.
+
+\textbf{Climate Toolbox} (https://climatetoolbox.org) offers a suite of interactive web tools for mapping and analyzing historical and projected climate data across the United States. It uses GridMET and PRISM datasets to provide county-level analysis with a 1981--2010 baseline period. Similarly, the \textbf{West Wide Drought Tracker} (https://wrcc.dri.edu/wwdt/) provides monthly drought indices using PRISM data for the western United States at county-level resolution. Both tools demonstrate the utility of sub-national climate monitoring but are geographically limited to the US.
+
+\subsection{Pakistan-Specific Tools}
+\textbf{ICIMOD National Agricultural Drought Watch for Pakistan} (https://tethys.icimod.org/apps/droughtpk/) is developed under the SERVIR Hindu Kush Himalaya Initiative and provides district-level drought monitoring. It uses CHIRPS precipitation data and MODIS imagery to compute indices including evapotranspiration, Standardized Precipitation Index (SPI), soil moisture, and temperature extremes. The platform offers current conditions, seasonal analysis, and a 9-month forecast outlook. While this tool provides district-level analysis, it focuses specifically on agricultural drought rather than general temperature and precipitation anomalies, and relies on different datasets than the ERA5 and GFS used in the present study.
+
+The \textbf{Pakistan Meteorological Department (PMD)} (https://www.pmd.gov.pk) provides official weather forecasts and climate data for Pakistan. However, their forecasts extend only up to approximately one week and are typically provided at the provincial level rather than district level. Additionally, PMD does not utilize Google Earth Engine datasets or provide interactive web-based anomaly analysis tools.
+
+The \textbf{NDMA Disaster Alert} mobile application developed by Pakistan's National Disaster Management Authority provides district-level alerts for various hazards including floods, heatwaves, earthquakes, and smog. While it offers district-level information and GIS-based mapping, it focuses on disaster alerting rather than systematic anomaly analysis and does not provide historical pattern analysis, forecast comparison, or cumulative anomaly scoring.
+
+\subsection{Research Gap}
+The review of existing tools reveals several gaps that the present work addresses:
+
+\begin{enumerate}
+    \item \textbf{GFS Forecast vs. Historical Comparison:} No existing Pakistan-focused tool compares 16-day GFS weather forecasts with historical climatological baselines at the district level.
+    \item \textbf{Cumulative Anomaly Scoring:} No existing tool provides a combined score that sums recent past deviations with forecast anomalies to assess cumulative climate risk.
+    \item \textbf{Complete District-Level Coverage:} While some tools provide district-level analysis, none offer a comprehensive suite covering all 150+ districts of Pakistan with multiple analysis modes (historical, near real-time, forecast, and combined).
+    \item \textbf{ERA5 and GFS Integration:} Most tools use either historical reanalysis data or forecast data, but not both in combination for Pakistan-specific analysis.
+    \item \textbf{Pre-computed Pakistan Baselines:} No existing GEE application provides pre-computed historical monthly averages for all Pakistan districts as a reusable asset.
+\end{enumerate}
+
+The four applications developed in this study address these gaps by providing district-level analysis using ERA5-Land historical data and GFS forecast data, offering threshold-based anomaly detection, near real-time monitoring, forecast-based anomaly detection, and cumulative anomaly scoring.
+
 \section{Data and Methods}
 \subsection{Datasets}
 This study utilizes two primary datasets for climate analysis and forecasting:
