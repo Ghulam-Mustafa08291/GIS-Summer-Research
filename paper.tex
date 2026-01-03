@@ -70,17 +70,19 @@ The \textbf{Pakistan Meteorological Department (PMD)} (https://www.pmd.gov.pk) p
 The \textbf{NDMA Disaster Alert} mobile application developed by Pakistan's National Disaster Management Authority provides district-level alerts for various hazards including floods, heatwaves, earthquakes, and smog. While it offers district-level alert information and GIS-based mapping, it focuses exclusively on current disaster alerting rather than systematic anomaly analysis. The application does not provide historical time-series analysis, pattern visualization, forecast comparison with historical baselines, or cumulative anomaly scoring.
 
 \subsection{Research Gap}
-The review of existing tools reveals several gaps that the present work addresses:
+The review of existing tools reveals critical gaps in the availability of interactive, district-level climate anomaly analysis for Pakistan:
 
 \begin{enumerate}
-    \item \textbf{GFS Forecast vs. Historical Comparison:} No existing Pakistan-focused tool compares 16-day GFS weather forecasts with historical climatological baselines at the district level.
-    \item \textbf{Cumulative Anomaly Scoring:} No existing tool provides a combined score that sums recent past deviations with forecast anomalies to assess cumulative climate risk.
-    \item \textbf{Complete District-Level Coverage:} While some tools provide district-level analysis, none offer a comprehensive suite covering all 150+ districts of Pakistan with multiple analysis modes (historical, near real-time, forecast, and combined).
-    \item \textbf{ERA5 and GFS Integration:} Most tools use either historical reanalysis data or forecast data, but not both in combination for Pakistan-specific analysis.
-    \item \textbf{Pre-computed Pakistan Baselines:} No existing GEE application provides pre-computed historical monthly averages for all Pakistan districts as a reusable asset.
+    \item \textbf{Lack of Short-Term Forecast Anomaly Detection:} While PMD provides monthly district-level anomaly maps, no existing Pakistan-focused tool enables users to compare 16-day GFS weather forecasts with historical climatological baselines in an interactive format. This capability is essential for early warning and proactive decision-making in agriculture, water management, and disaster preparedness.
+    
+    \item \textbf{No Cumulative Risk Assessment:} Existing tools analyze historical conditions or forecast data in isolation. No tool provides a cumulative anomaly score that combines recent observed deviations with anticipated forecast anomalies to assess ongoing and emerging climate risk---a critical need for understanding persistent or developing hazardous conditions.
+    
+    \item \textbf{Limited Interactive Analysis:} Although some platforms provide district-level information, they typically deliver static reports or maps rather than interactive web applications. Users cannot explore custom date ranges, click on individual districts for detailed information, or generate on-demand time-series visualizations.
+    
+    \item \textbf{Fragmented Coverage Across Multiple Platforms:} Currently, users must consult multiple disparate platforms to access historical patterns, near real-time conditions, and forecasts. No single suite of tools provides comprehensive coverage of all analysis modes (historical, near real-time, forecast, and combined) for Pakistan at the district level.
 \end{enumerate}
 
-The four applications developed in this study address these gaps by providing district-level analysis using ERA5-Land historical data and GFS forecast data, offering threshold-based anomaly detection, near real-time monitoring, forecast-based anomaly detection, and cumulative anomaly scoring.
+The four applications developed in this study directly address these gaps. By leveraging Google Earth Engine's cloud computing capabilities with ERA5-Land historical data and GFS forecast data, these tools provide: (1) interactive district-level analysis for all 150+ districts of Pakistan, (2) threshold-based historical anomaly detection with customizable parameters, (3) near real-time monitoring comparing current conditions with historical baselines, (4) 16-day forecast anomaly detection unavailable in any existing Pakistan-focused tool, and (5) a novel cumulative anomaly score combining past and forecast deviations for holistic risk assessment. Together, these applications empower researchers, policymakers, and practitioners with actionable climate intelligence for data-driven decision-making.
 
 \section{Data and Methods}
 \subsection{Datasets}
