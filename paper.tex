@@ -22,7 +22,7 @@
 
 %% Abstract
 \begin{abstract}
-This paper presents a suite of four interactive Google Earth Engine applications that leverage freely available global climate datasets---specifically the ERA5-Land Monthly Aggregated dataset (1981--present) and the GFS 384-Hour Predicted Atmosphere Data---to provide comprehensive weather anomaly analysis for all districts of Pakistan. The applications track long-term trends in rainfall and temperature anomalies, provide near real-time monitoring comparing current conditions with historical baselines, compare 16-day weather forecasts with climatological norms, and compute cumulative anomaly scores by integrating recent past observations with forecast predictions. This integration of near real-time historical data with short-term forecasts enables enhanced early warning capabilities, allowing users to identify not only current anomalous conditions but also anticipate emerging risks before they fully develop. The applications employ threshold-based detection and difference-based visualization to identify anomalous conditions, presenting results through interactive time-series charts and color-coded spatial maps at the district level. These tools are designed to support data-driven climate resilience planning and climate-aware operations in agriculture, water management, and disaster preparedness. A case study of the 2010 floods demonstrates the utility of the historical analysis application.
+This paper presents a suite of four interactive Google Earth Engine applications that leverage freely available global climate datasets, specifically the ERA5-Land Monthly Aggregated dataset (1981--present) and the GFS 384-Hour Predicted Atmosphere Data, to provide comprehensive weather anomaly analysis for all districts of Pakistan. The applications track long-term trends in rainfall and temperature anomalies, provide near real-time monitoring comparing current conditions with historical baselines, compare 16-day weather forecasts with climatological norms, and compute cumulative anomaly scores by integrating recent past observations with forecast predictions. This integration of near real-time historical data with short-term forecasts enables enhanced early warning capabilities, allowing users to identify not only current anomalous conditions but also anticipate emerging risks before they fully develop. The applications employ threshold-based detection and difference-based visualization to identify anomalous conditions, presenting results through interactive time-series charts and color-coded spatial maps at the district level. These tools are designed to support data-driven climate resilience planning and climate-aware operations in agriculture, water management, and disaster preparedness. A case study of the 2010 floods demonstrates the utility of the historical analysis application.
 \end{abstract}
 
 %% Graphical abstract
@@ -49,12 +49,16 @@ climate anomalies \sep ERA5-Land Dataset \sep Pakistan weather patterns \sep Goo
 %% ---------------- Main Text ----------------
 
 \section{Introduction}
-- Background on climate change impacts in Pakistan.  
-- Importance of detecting rainfall and temperature anomalies.  
-- Role of Google Earth Engine for large-scale monitoring.  
-- Contributions of this paper (apps + case study).
 
-\section{Related Work}
+Pakistan is among the countries most vulnerable to climate change impacts. According to the Germanwatch Global Climate Risk Index, Pakistan has consistently ranked among the top 10 most affected countries, placed 5th in 2020, 8th in 2021, and identified as the most vulnerable country in 2022 following the catastrophic monsoon floods \cite{germanwatch2021}. The country has experienced increasingly frequent and severe extreme weather events, including the devastating 2010 floods that caused an estimated \$9.7 billion in damages \cite{worldbank2010}, and the unprecedented 2022 floods that resulted in over \$14.9 billion in damages, \$15.2 billion in economic losses, affected 33 million people, and pushed an additional 8--9 million people below the poverty line \cite{worldbank2022pdna}. The World Bank's Country Climate and Development Report projects that climate-related events could reduce Pakistan's GDP by 18--20\% by 2050 if adaptation measures are not implemented \cite{worldbankccdr}.
+
+These climate vulnerabilities underscore the critical need for accessible monitoring tools that can help decision-makers---including farmers, water resource managers, and disaster management authorities---track weather anomalies and anticipate emerging risks. Early detection of rainfall and temperature deviations from historical norms enables proactive responses: farmers can adjust planting schedules and irrigation practices, water managers can prepare for droughts or floods, and disaster agencies can issue timely warnings. However, despite the availability of global climate datasets, there remains a gap in interactive, district-level tools specifically designed for Pakistan that integrate both historical analysis and short-term forecasts.
+
+Google Earth Engine (GEE) presents a significant opportunity to address this gap. As a cloud-based platform for planetary-scale geospatial analysis, GEE provides free access to decades of satellite imagery and climate datasets, including the ERA5-Land reanalysis data from the European Centre for Medium-Range Weather Forecasts (ECMWF) and the Global Forecast System (GFS) predictions from the National Oceanic and Atmospheric Administration (NOAA). These datasets are updated regularly and available globally, yet their potential for Pakistan-specific, district-level climate monitoring remains underutilized. By leveraging GEE's computational infrastructure, it becomes possible to develop interactive applications that require no local data storage or processing capabilities, making climate intelligence accessible to a broader range of stakeholders.
+
+This paper presents a suite of four interactive GEE applications designed to fill this gap. The applications provide: (1) historical pattern analysis with threshold-based anomaly detection using a 30-year baseline period, (2) near real-time monitoring comparing current monthly conditions with historical averages, (3) 16-day forecast anomaly detection comparing GFS predictions with climatological norms, and (4) a novel cumulative anomaly score that integrates recent past observations with forecast predictions to enable enhanced early warning. All applications operate at the district level, covering all 150+ districts of Pakistan, and present results through interactive maps and time-series visualizations. A case study of the 2010 floods demonstrates the utility of the historical analysis application in identifying anomalous conditions that preceded the disaster.
+
+\section{Literature Survey}
 Several platforms and tools have been developed for climate monitoring and anomaly detection at various spatial scales. This section reviews existing global platforms and Pakistan-specific tools, identifying gaps that motivate the present work.
 
 \subsection{Global Platforms}
@@ -270,12 +274,32 @@ Users can click on any district to view a breakdown showing the past months' ano
 %% ---------------- References ----------------
 \begin{thebibliography}{00}
 
-\bibitem{lamport94}
-  Leslie Lamport,
-  \textit{\LaTeX: a document preparation system},
-  Addison Wesley, Massachusetts,
-  2nd edition,
-  1994.
+\bibitem{germanwatch2021}
+  Eckstein, D., Künzel, V., \& Schäfer, L.,
+  \textit{Global Climate Risk Index 2021},
+  Germanwatch e.V., Bonn,
+  2021.
+  Available: https://www.germanwatch.org/en/cri
+
+\bibitem{worldbank2010}
+  World Bank \& Asian Development Bank,
+  \textit{Pakistan Floods 2010: Preliminary Damage and Needs Assessment},
+  World Bank, Islamabad,
+  2010.
+
+\bibitem{worldbank2022pdna}
+  Government of Pakistan, Asian Development Bank, European Union, United Nations Development Programme, \& World Bank,
+  \textit{Pakistan Floods 2022: Post-Disaster Needs Assessment},
+  World Bank, Islamabad,
+  2022.
+  Available: https://www.worldbank.org/en/country/pakistan/publication/pakistan-floods-2022-post-disaster-needs-assessment
+
+\bibitem{worldbankccdr}
+  World Bank,
+  \textit{Pakistan Country Climate and Development Report},
+  World Bank, Washington, D.C.,
+  2022.
+  Available: https://www.worldbank.org/en/country/pakistan/publication/pakistan-country-climate-and-development-report
 
 \end{thebibliography}
 
