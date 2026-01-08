@@ -80,7 +80,7 @@ The \textbf{NDMA Disaster Alert} mobile application developed by Pakistan's Nati
 The review of existing tools reveals critical gaps in the availability of accessible, district-level climate anomaly analysis for Pakistan:
 
 \begin{enumerate}
-    \item \textbf{Lack of Short-Term Operational Forecast Analysis:} While ICIMOD DroughtPK provides 9-month seasonal forecast outlooks and PMD offers monthly district-level anomaly maps, no existing Pakistan-focused tool enables users to compare short-term (16-day) GFS weather forecasts with historical climatological baselines. This short-term operational capability is essential for immediate early warning and proactive decision-making in agriculture, water management, and disaster preparedness where weekly-scale forecasts are actionable.
+    \item \textbf{Lack of Short-Term Operational Forecast Analysis:} While ICIMOD DroughtPK provides 9-month seasonal forecast outlooks and PMD offers monthly district-level anomaly maps, no existing Pakistan-focused tool enables users to compare short-term (16-day) GFS weather forecasts with historical climatological baselines. Although GFS 16-day rainfall forecasts have been validated for agricultural advisory in Pakistan \cite{bhatti2022gfs}, no interactive tool enables district-level comparison of these forecasts with historical climatological baselines across all districts of Pakistan. This short-term operational capability is essential for immediate early warning and proactive decision-making in agriculture, water management, and disaster preparedness where weekly-scale forecasts are actionable.
     
     \item \textbf{No Cumulative Risk Assessment:} Existing tools analyze historical conditions or forecast data in isolation. No tool provides a cumulative anomaly score that combines recent observed deviations with anticipated forecast anomalies to assess ongoing and emerging climate risk, which is a critical need for understanding persistent or developing hazardous conditions.
     
@@ -97,7 +97,7 @@ This study utilizes two primary datasets for climate analysis and forecasting:
 
 \textbf{ERA5-Land Monthly Aggregated Dataset (1981–present):} ERA5-Land is a reanalysis dataset produced by the European Centre for Medium-Range Weather Forecasts (ECMWF). It provides global land surface variables at approximately 9~km (0.1°) spatial resolution. ERA5 has been validated against surface gauge observations over Pakistan, demonstrating strong correlations (0.87--0.98) across monthly, seasonal, and annual timescales, supporting its use for climate monitoring applications in the region \cite{ahmed2022era5}. This study uses the monthly aggregated version available through Google Earth Engine, specifically extracting the \texttt{total\_precipitation\_sum} (total monthly precipitation in meters) and \texttt{temperature\_2m} (air temperature at 2 meters above the surface in Kelvin) bands. The dataset's long temporal coverage (1981–present) enables robust climatological baseline calculations.
 
-\textbf{GFS: Global Forecast System 384-Hour Predicted Atmosphere Data:} The GFS is a global numerical weather prediction system operated by the National Oceanic and Atmospheric Administration (NOAA). It provides forecast data at 0.25° spatial resolution with predictions extending up to 384 hours (16 days) into the future. This study uses the \texttt{precipitation\_rate} (kg/m²/s) and \texttt{temperature\_2m\_above\_ground} (K) variables. Hourly forecasts are available for the first 120 hours, followed by 3-hourly forecasts for hours 123–384.
+\textbf{GFS: Global Forecast System 384-Hour Predicted Atmosphere Data:} The GFS is a global numerical weather prediction system operated by the National Oceanic and Atmospheric Administration (NOAA). It provides forecast data at 0.25° spatial resolution with predictions extending up to 384 hours (16 days) into the future. GFS rainfall forecasts have been statistically verified for agricultural applications in Pakistan, demonstrating useful prediction skill for farmers' decision-making \cite{bhatti2022gfs}. This study uses the \texttt{precipitation\_rate} (kg/m²/s) and \texttt{temperature\_2m\_above\_ground} (K) variables. Hourly forecasts are available for the first 120 hours, followed by 3-hourly forecasts for hours 123--384.
 
 \subsection{Study Area}
 The study area encompasses all districts of Pakistan, providing district-level spatial resolution for climate anomaly analysis. Pakistan's diverse geography includes multiple climate zones ranging from arid and semi-arid regions in the south and west to humid subtropical and alpine climates in the north. This climatic diversity makes district-level analysis essential for capturing localized weather patterns and anomalies.
@@ -302,6 +302,14 @@ Users can click on any district to view a breakdown showing the past months' ano
   vol. 150, pp. 1--21,
   2022.
   DOI: 10.1007/s00704-022-04100-w
+
+\bibitem{bhatti2022gfs}
+  Bhatti, M.T. \& Anwar, A.A.,
+  \textit{Statistical verification of 16-day rainfall forecast for a farmers advisory service in Pakistan},
+  Agricultural and Forest Meteorology,
+  vol. 318, 108888,
+  2022.
+  DOI: 10.1016/j.agrformet.2022.108888
 
 \end{thebibliography}
 
