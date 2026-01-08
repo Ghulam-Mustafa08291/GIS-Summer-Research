@@ -51,7 +51,7 @@ climate anomalies \sep ERA5-Land Dataset \sep Pakistan weather patterns \sep Goo
 
 \section{Introduction}
 
-Pakistan is among the countries most vulnerable to climate change impacts. According to the Germanwatch Global Climate Risk Index, Pakistan has consistently ranked among the top 10 most affected countries, placed 5th in 2020, 8th in 2021, and identified as the most vulnerable country in 2022 following the catastrophic monsoon floods \cite{germanwatch2021}. The country has experienced increasingly frequent and severe extreme weather events, including the devastating 2010 floods and the unprecedented 2022 floods that affected over 33 million people and caused billions of dollars in damages to infrastructure, agriculture, and housing.
+Pakistan is among the countries most vulnerable to climate change impacts. According to the Germanwatch Global Climate Risk Index, Pakistan has consistently ranked among the top 10 most affected countries, placed 5th in 2020, 8th in 2021, and identified as the most vulnerable country in 2022 following the catastrophic monsoon floods \cite{germanwatch2021}. The country has experienced increasingly frequent and severe extreme weather events, including the devastating 2010 floods and the unprecedented 2022 floods that affected over 33 million people and caused billions of dollars in damages to infrastructure, agriculture, and housing. Recent studies have documented escalating drought intensity across Pakistan's agro-ecological zones, with precipitation deficits of up to 63.5\% during critical crop development stages and significant warming trends \cite{iqbal2025drought}.
 
 These climate vulnerabilities underscore the critical need for accessible monitoring tools that can help decision-makers, including farmers, water resource managers, and disaster management authorities, track weather anomalies and anticipate emerging risks. Early detection of rainfall and temperature deviations from historical norms enables proactive responses: farmers can adjust planting schedules and irrigation practices, water managers can prepare for droughts or floods, and disaster agencies can issue timely warnings. However, despite the availability of global climate datasets, there remains a gap in interactive, district-level tools specifically designed for Pakistan that integrate both historical analysis and short-term forecasts.
 
@@ -60,7 +60,7 @@ Google Earth Engine (GEE) presents a significant opportunity to address this gap
 This paper presents a suite of four interactive GEE applications designed to fill this gap. The applications provide: (1) historical pattern analysis with threshold-based anomaly detection using a 30-year baseline period, (2) near real-time monitoring comparing current monthly conditions with historical averages, (3) 16-day forecast anomaly detection comparing GFS predictions with climatological norms, and (4) a novel cumulative anomaly score that integrates recent past observations with forecast predictions to enable enhanced early warning. All applications operate at the district level, covering all 150+ districts of Pakistan, and present results through interactive maps and time-series visualizations. A case study of the 2010 floods demonstrates the utility of the historical analysis application in identifying anomalous conditions that preceded the disaster.
 
 \section{Literature Survey}
-Several platforms and tools have been developed for climate monitoring and anomaly detection at various spatial scales. This section reviews existing global platforms and Pakistan-specific tools, identifying gaps that motivate the present work.
+Several platforms and tools have been developed for climate monitoring and anomaly detection at various spatial scales. Recent research has explored data-driven approaches for climate risk assessment in Pakistan, integrating remote sensing with spatial analysis techniques \cite{fcsi2024climate}. This section reviews existing global platforms and Pakistan-specific tools, identifying gaps that motivate the present work.
 
 \subsection{Global Platforms}
 \textbf{Climate Engine} (\url{https://climateengine.org}) is a web-based platform built on Google Earth Engine that provides access to climate and remote sensing data including ERA5 (1979--present, 0.25° resolution), Landsat, and MODIS datasets. Developed through a collaboration between the Desert Research Institute, University of California Merced, and Google, the platform enables users to generate maps of average temperature and precipitation values over custom date ranges, compute deviations from long-term baseline means, and calculate drought indices such as SPI, SPEI, EDDI, and PDSI directly within the application. While the platform can display temperature and rainfall anomalies for Pakistan at the country level, it does not provide district-level analysis, district-specific time-series visualizations, or forecast-based anomaly detection using GFS data.
@@ -95,7 +95,7 @@ The four applications developed in this study directly address these gaps. By le
 \subsection{Datasets}
 This study utilizes two primary datasets for climate analysis and forecasting:
 
-\textbf{ERA5-Land Monthly Aggregated Dataset (1981–present):} ERA5-Land is a reanalysis dataset produced by the European Centre for Medium-Range Weather Forecasts (ECMWF). It provides global land surface variables at approximately 9~km (0.1°) spatial resolution. This study uses the monthly aggregated version available through Google Earth Engine, specifically extracting the \texttt{total\_precipitation\_sum} (total monthly precipitation in meters) and \texttt{temperature\_2m} (air temperature at 2 meters above the surface in Kelvin) bands. The dataset's long temporal coverage (1981–present) enables robust climatological baseline calculations.
+\textbf{ERA5-Land Monthly Aggregated Dataset (1981–present):} ERA5-Land is a reanalysis dataset produced by the European Centre for Medium-Range Weather Forecasts (ECMWF). It provides global land surface variables at approximately 9~km (0.1°) spatial resolution. ERA5 has been validated against surface gauge observations over Pakistan, demonstrating strong correlations (0.87--0.98) across monthly, seasonal, and annual timescales, supporting its use for climate monitoring applications in the region \cite{ahmed2022era5}. This study uses the monthly aggregated version available through Google Earth Engine, specifically extracting the \texttt{total\_precipitation\_sum} (total monthly precipitation in meters) and \texttt{temperature\_2m} (air temperature at 2 meters above the surface in Kelvin) bands. The dataset's long temporal coverage (1981–present) enables robust climatological baseline calculations.
 
 \textbf{GFS: Global Forecast System 384-Hour Predicted Atmosphere Data:} The GFS is a global numerical weather prediction system operated by the National Oceanic and Atmospheric Administration (NOAA). It provides forecast data at 0.25° spatial resolution with predictions extending up to 384 hours (16 days) into the future. This study uses the \texttt{precipitation\_rate} (kg/m²/s) and \texttt{temperature\_2m\_above\_ground} (K) variables. Hourly forecasts are available for the first 120 hours, followed by 3-hourly forecasts for hours 123–384.
 
@@ -281,6 +281,27 @@ Users can click on any district to view a breakdown showing the past months' ano
   Germanwatch e.V., Bonn,
   2021.
   Available: https://www.germanwatch.org/en/cri
+
+\bibitem{iqbal2025drought}
+  Iqbal, M.F., et al.,
+  \textit{Evolving climatic patterns and drought risk in Pakistan's agro-ecological zones},
+  Theoretical and Applied Climatology,
+  2025.
+  DOI: 10.1007/s00704-025-05681-y
+
+\bibitem{fcsi2024climate}
+  Authors,
+  \textit{Integrating Remote Sensing and Spatial Artificial Intelligence for Climate Risk Assessment in Pakistan: A Data-Driven Spatiotemporal Analysis},
+  Frontiers in Computational and Smart Intelligence (FCSI),
+  2024.
+
+\bibitem{ahmed2022era5}
+  Ahmed, K., Sachindra, D.A., Shahid, S., Iqbal, Z., Nawaz, N., \& Khan, N.,
+  \textit{Performance evaluation and comparison of observed and reanalysis gridded precipitation datasets over Pakistan},
+  Theoretical and Applied Climatology,
+  vol. 150, pp. 1--21,
+  2022.
+  DOI: 10.1007/s00704-022-04100-w
 
 \end{thebibliography}
 
