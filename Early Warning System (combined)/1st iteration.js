@@ -182,8 +182,11 @@ function showDistrictLoadingIndicator(districtName) {
     value: '⏳ Loading District Data...', 
     style: { fontSize: '15px', fontWeight: 'bold', color: '#2980b9', margin: '0 0 10px 0' } 
   });
+  var messageText = districtName ? 
+    'Please wait while we load data for ' + districtName + ' district...' :
+    'Please wait while we load district data...';
   var loadingMessage = ui.Label({ 
-    value: 'Please wait while we load data for ' + (districtName || 'the selected') + ' district...', 
+    value: messageText, 
     style: { fontSize: '13px', color: '#34495e', fontStyle: 'italic' } 
   });
   districtInfoPanel.add(districtInfoTitle).add(loadingMessage);
@@ -588,44 +591,41 @@ function addLegend(map, parameter, maxVal) {
 // ===========================================================================================
 function addClickHandler(map, fc, parameter) {
   map.onClick(function(coords) {
+    // Show loading indicator IMMEDIATELY without district name
+    showDistrictLoadingIndicator();
+    
     var point = ee.Geometry.Point([coords.lon, coords.lat]);
     var clickedDistrict = fc.filterBounds(point).first();
     
-    // Get district name first, then show loading with the name
-    clickedDistrict.get('district_name').evaluate(function(districtName) {
-      // Show loading indicator with district name
-      showDistrictLoadingIndicator(districtName);
+    // Now fetch the full district data
+    clickedDistrict.evaluate(function(feature, err) {
+      if (err || !feature) {
+        showDistrictInfo('Click on a District', 'Click on any district to see detailed anomaly information.');
+        return;
+      }
       
-      // Now fetch the full district data
-      clickedDistrict.evaluate(function(feature, err) {
-        if (err || !feature) {
-          showDistrictInfo('Click on a District', 'Click on any district to see detailed anomaly information.');
-          return;
-        }
-        
-        var props = feature.properties;
-        var unit = parameter === 'precipitation' ? 'mm' : '°C';
-        
-        var pastVal = props.past_diff !== undefined ? props.past_diff.toFixed(2) : 'N/A';
-        var forecastVal = props.forecast_diff !== undefined ? props.forecast_diff.toFixed(2) : 'N/A';
-        var combinedVal = props.combined_diff !== undefined ? props.combined_diff.toFixed(2) : 'N/A';
-        
-        var pastStatus = getAnomalyStatus(props.past_diff);
-        var forecastStatus = getAnomalyStatus(props.forecast_diff);
-        var combinedStatus = getAnomalyStatus(props.combined_diff);
-        
-        var content = 
-          '━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n' +
-          '📊 Past 90-Day Anomaly:\n' +
-          '   ' + pastVal + ' ' + unit + ' ' + pastStatus + '\n\n' +
-          '🔮 16-Day Forecast Anomaly:\n' +
-          '   ' + forecastVal + ' ' + unit + ' ' + forecastStatus + '\n\n' +
-          '⚡ Combined 90+16 Day Anomaly:\n' +
-          '   ' + combinedVal + ' ' + unit + ' ' + combinedStatus + '\n' +
-          '━━━━━━━━━━━━━━━━━━━━━━━━━━━━';
-        
-        showDistrictInfo(props.district_name || 'District', content);
-      });
+      var props = feature.properties;
+      var unit = parameter === 'precipitation' ? 'mm' : '°C';
+      
+      var pastVal = props.past_diff !== undefined ? props.past_diff.toFixed(2) : 'N/A';
+      var forecastVal = props.forecast_diff !== undefined ? props.forecast_diff.toFixed(2) : 'N/A';
+      var combinedVal = props.combined_diff !== undefined ? props.combined_diff.toFixed(2) : 'N/A';
+      
+      var pastStatus = getAnomalyStatus(props.past_diff);
+      var forecastStatus = getAnomalyStatus(props.forecast_diff);
+      var combinedStatus = getAnomalyStatus(props.combined_diff);
+      
+      var content = 
+        '━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n' +
+        '📊 Past 90-Day Anomaly:\n' +
+        '   ' + pastVal + ' ' + unit + ' ' + pastStatus + '\n\n' +
+        '🔮 16-Day Forecast Anomaly:\n' +
+        '   ' + forecastVal + ' ' + unit + ' ' + forecastStatus + '\n\n' +
+        '⚡ Combined 90+16 Day Anomaly:\n' +
+        '   ' + combinedVal + ' ' + unit + ' ' + combinedStatus + '\n' +
+        '━━━━━━━━━━━━━━━━━━━━━━━━━━━━';
+      
+      showDistrictInfo(props.district_name || 'District', content);
     });
   });
 }
