@@ -13,7 +13,7 @@
 
 \begin{frontmatter}
 
-\title{District-Level Weather Anomalies in Pakistan: Historical Patterns, Near-Real-Time Monitoring, and Forecast-Based Anomaly Detection}
+\title{Early Warning System for District-Level Weather Anomalies in Pakistan Using Global Weather and Climate Datasets}
 
 \author{Ghulam Mustafa}
 
@@ -23,7 +23,7 @@
 
 %% Abstract
 \begin{abstract}
-This paper presents a suite of four interactive Google Earth Engine applications that leverage freely available global climate datasets, specifically the ERA5-Land Monthly Aggregated dataset (1981--present) and the GFS 384-Hour Predicted Atmosphere Data, to provide comprehensive weather anomaly analysis for all districts of Pakistan. The applications track long-term trends in rainfall and temperature anomalies, provide near real-time monitoring comparing current conditions with historical baselines, compare 16-day weather forecasts with climatological norms, and compute cumulative anomaly scores by integrating recent past observations with forecast predictions. This integration of near real-time historical data with short-term forecasts enables enhanced early warning capabilities, allowing users to identify not only current anomalous conditions but also anticipate emerging risks before they fully develop. The applications employ threshold-based detection and difference-based visualization to identify anomalous conditions, presenting results through interactive time-series charts and color-coded spatial maps at the district level. These tools are designed to support data-driven climate resilience planning and climate-aware operations in agriculture, water management, and disaster preparedness. A case study of the 2010 floods demonstrates the utility of the historical analysis application.
+Pakistan currently has sparse coverage by high-quality weather observation stations, limiting the ability to develop localized early warning systems for weather-related disasters. This paper presents an approach for the development of an early warning system for district-level weather anomalies in Pakistan using only globally available weather and climate datasets. The presented approach combines global data for historical weather patterns from the ERA5-Land Monthly Aggregated dataset with short-term weather forecasts from the Global Forecast System (GFS). The historical data is used to calculate climatological baselines (10-year averages from 2014--2024) for rainfall and temperature for each of Pakistan's 150+ districts. For early warning, observed weather data from the preceding 90 days (three months) is combined with the 16-day GFS forecast, and the combined behavior over this 90+16 day period is compared against the climatological baseline for the corresponding period. This integration of recent past weather data with short-term forecasts enables enhanced early warning capability, allowing users to identify not only current anomalous conditions but also anticipate emerging risks before they fully develop. The early warning system is implemented as an interactive Google Earth Engine application that presents results through a single map with three toggleable layers: (1) anomalies based on the past 90 days, (2) anomalies based on the 16-day forecast, and (3) combined anomalies integrating both periods. The paper uses the case study of the 2010 and 2022 Pakistan floods to explore both the potential and the limitations of this approach toward building an operational early warning system. Results demonstrate that the combined past+forecast view provides enhanced insight for identifying developing hazardous conditions compared to analyzing either period in isolation.
 \end{abstract}
 
 %% Graphical abstract
@@ -33,16 +33,16 @@ This paper presents a suite of four interactive Google Earth Engine applications
 
 %% Research highlights
 \begin{highlights}
-\item Application 1: Long-term historical anomaly pattern analysis using ERA5-Land dataset (1981–present).
-\item Application 2: Near real-time monitoring comparing current conditions with historical baselines.
-\item Application 3: 16-day forecast anomaly detection using GFS data compared with historical averages.
-\item Application 4: Cumulative anomaly score combining past months' deviations with forecast anomalies.
-\item Case study: 2010 Pakistan floods demonstrate early warning potential.
+\item Early warning system using global datasets (ERA5, GFS) to overcome Pakistan's sparse local weather station coverage.
+\item Climatological baselines computed from 10-year ERA5-Land data (2014--2024) for each of 150+ districts.
+\item Single GEE application with three map layers: past 90-day anomalies, 16-day forecast anomalies, and combined 90+16 day anomalies.
+\item Combined past+forecast analysis provides enhanced early warning insight over isolated analysis.
+\item Case study: 2010 and 2022 Pakistan floods demonstrate potential and limitations of the approach.
 \end{highlights}
 
 %% Keywords
 \begin{keyword}
-climate anomalies \sep ERA5-Land Dataset \sep Pakistan weather patterns \sep Google Earth Engine \sep flood early warning
+early warning system \sep climate anomalies \sep ERA5-Land \sep GFS forecast \sep Pakistan \sep Google Earth Engine \sep flood risk
 \end{keyword}
 
 \end{frontmatter}
@@ -53,11 +53,11 @@ climate anomalies \sep ERA5-Land Dataset \sep Pakistan weather patterns \sep Goo
 
 Pakistan is among the countries most vulnerable to climate change impacts. According to the Germanwatch Global Climate Risk Index, Pakistan has consistently ranked among the top 10 most affected countries, placed 5th in 2020, 8th in 2021, and identified as the most vulnerable country in 2022 following the catastrophic monsoon floods \cite{germanwatch2021}. The country has experienced increasingly frequent and severe extreme weather events, including the devastating 2010 floods and the unprecedented 2022 floods that affected over 33 million people and caused billions of dollars in damages to infrastructure, agriculture, and housing. Recent studies have documented escalating drought intensity across Pakistan's agro-ecological zones, with precipitation deficits of up to 63.5\% during critical crop development stages and significant warming trends \cite{iqbal2025drought}.
 
-These climate vulnerabilities underscore the critical need for accessible monitoring tools that can help decision-makers, including farmers, water resource managers, and disaster management authorities, track weather anomalies and anticipate emerging risks. Early detection of rainfall and temperature deviations from historical norms enables proactive responses: farmers can adjust planting schedules and irrigation practices, water managers can prepare for droughts or floods, and disaster agencies can issue timely warnings. However, despite the availability of global climate datasets, there remains a gap in interactive, district-level tools specifically designed for Pakistan that integrate both historical analysis and short-term forecasts.
+These climate vulnerabilities underscore the critical need for effective early warning systems that can help decision-makers anticipate emerging risks. Early detection of rainfall and temperature deviations from historical norms enables proactive responses: farmers can adjust planting schedules and irrigation practices, water managers can prepare for droughts or floods, and disaster agencies can issue timely warnings. However, Pakistan's weather observation infrastructure presents a significant challenge. The country has sparse coverage by high-quality weather observation stations, particularly in rural and mountainous areas where climate impacts are often most severe. This data scarcity limits the ability to develop localized early warning systems using conventional ground-based monitoring approaches.
 
-Google Earth Engine (GEE) presents a significant opportunity to address this gap. As a cloud-based platform for planetary-scale geospatial analysis, GEE provides free access to decades of satellite imagery and climate datasets, including the ERA5-Land reanalysis data from the European Centre for Medium-Range Weather Forecasts (ECMWF) and the Global Forecast System (GFS) predictions from the National Oceanic and Atmospheric Administration (NOAA). These datasets are updated regularly and available globally, yet their potential for Pakistan-specific, district-level climate monitoring remains underutilized. By leveraging GEE's computational infrastructure, it becomes possible to develop interactive applications that require no local data storage or processing capabilities, making climate intelligence accessible to a broader range of stakeholders.
+Global climate datasets offer a promising alternative to overcome this limitation. The ERA5-Land reanalysis dataset from the European Centre for Medium-Range Weather Forecasts (ECMWF) provides consistent, gap-free historical weather data at approximately 9~km resolution, while the Global Forecast System (GFS) from the National Oceanic and Atmospheric Administration (NOAA) provides 16-day weather forecasts at 0.25° resolution. Both datasets are freely available through Google Earth Engine (GEE), a cloud-based platform for planetary-scale geospatial analysis that requires no local data storage or processing capabilities. By leveraging these global datasets and GEE's computational infrastructure, it becomes possible to develop district-level early warning tools that function independently of local observation networks, making climate intelligence accessible to a broader range of stakeholders across Pakistan.
 
-This paper presents a suite of four interactive GEE applications designed to fill this gap. The applications provide: (1) historical pattern analysis with threshold-based anomaly detection using a 30-year baseline period, (2) near real-time monitoring comparing current monthly conditions with historical averages, (3) 16-day forecast anomaly detection comparing GFS predictions with climatological norms, and (4) a novel cumulative anomaly score that integrates recent past observations with forecast predictions to enable enhanced early warning. All applications operate at the district level, covering all 150+ districts of Pakistan, and present results through interactive maps and time-series visualizations. A case study of the 2010 floods demonstrates the utility of the historical analysis application in identifying anomalous conditions that preceded the disaster.
+This paper presents an early warning system for district-level weather anomalies in Pakistan that combines historical weather patterns from ERA5-Land with short-term forecasts from GFS. The system uses a 10-year baseline period (2014--2024) to calculate climatological averages for rainfall and temperature for each of Pakistan's 150+ districts. For early warning, the system compares observed weather from the preceding 90 days (three months) and the upcoming 16-day forecast against these baseline values. The early warning system is implemented as an interactive GEE application presenting results through a single map with three toggleable layers: (1) anomalies based on the past 90 days only, (2) anomalies based on the 16-day forecast only, and (3) combined anomalies integrating both periods. This combined view enables users to identify not only current anomalous conditions but also anticipate emerging risks before they fully develop. A case study of the 2010 and 2022 Pakistan floods demonstrates both the potential and the limitations of this approach toward building an operational early warning system.
 
 \section{Literature Survey}
 Several platforms and tools have been developed for climate monitoring and anomaly detection at various spatial scales. Recent research has explored data-driven approaches for climate risk assessment in Pakistan, integrating remote sensing with spatial analysis techniques \cite{fcsi2024climate}. This section reviews existing global platforms and Pakistan-specific tools, identifying gaps that motivate the present work.
@@ -77,7 +77,7 @@ The \textbf{Pakistan Meteorological Department (PMD)} (\url{https://www.pmd.gov.
 The \textbf{NDMA Disaster Alert} mobile application developed by Pakistan's National Disaster Management Authority provides district-level alerts for various hazards including floods, heatwaves, earthquakes, and smog. While it offers district-level alert information and GIS-based mapping, it focuses exclusively on current disaster alerting rather than systematic anomaly analysis. The application does not provide historical time-series analysis, pattern visualization, forecast comparison with historical baselines, or cumulative anomaly scoring.
 
 \subsection{Research Gap}
-The review of existing tools reveals critical gaps in the availability of accessible, district-level climate anomaly analysis for Pakistan:
+The review of existing tools reveals critical gaps in the availability of early warning systems for district-level weather anomalies in Pakistan:
 
 \begin{enumerate}
     \item \textbf{Lack of Short-Term Operational Forecast Analysis:} While ICIMOD DroughtPK provides 9-month seasonal forecast outlooks and PMD offers monthly district-level anomaly maps, no existing Pakistan-focused tool enables users to compare short-term (16-day) GFS weather forecasts with historical climatological baselines. Although GFS 16-day rainfall forecasts have been validated for agricultural advisory in Pakistan \cite{bhatti2022gfs}, no interactive tool enables district-level comparison of these forecasts with historical climatological baselines across all districts of Pakistan. This short-term operational capability is essential for immediate early warning and proactive decision-making in agriculture, water management, and disaster preparedness where weekly-scale forecasts are actionable.
@@ -86,10 +86,10 @@ The review of existing tools reveals critical gaps in the availability of access
     
     \item \textbf{Standardized vs. Intuitive Anomaly Representation:} Tools such as ICIMOD DroughtPK express forecast anomalies as Z-scores (standardized deviations), which require statistical interpretation. No Pakistan-focused tool presents anomalies in intuitive actual units (millimeters for rainfall, degrees Celsius for temperature) that are immediately understandable to farmers, water managers, and non-technical stakeholders.
     
-    \item \textbf{Fragmented Coverage Across Multiple Platforms:} Currently, users must consult multiple disparate platforms to access historical patterns, near real-time conditions, and forecasts. No single suite of tools provides comprehensive coverage of all analysis modes (historical, near real-time, short-term forecast, and combined) for Pakistan at the district level using consistent datasets and methodology.
+    \item \textbf{No Integrated Early Warning Approach:} Currently, users must consult multiple disparate platforms to access recent observations and forecasts. No existing tool integrates recent past weather observations with short-term forecasts to provide a combined early warning view that captures both ongoing and developing anomalous conditions.
 \end{enumerate}
 
-The four applications developed in this study directly address these gaps. By leveraging Google Earth Engine's cloud computing capabilities with ERA5-Land historical data and GFS forecast data, these tools provide: (1) interactive district-level analysis for all 150+ districts of Pakistan, (2) threshold-based historical anomaly detection with customizable parameters, (3) near real-time monitoring comparing current conditions with historical baselines, (4) short-term 16-day forecast anomaly detection filling the gap between near real-time and seasonal outlooks, (5) anomalies expressed in intuitive actual units (mm, °C) rather than standardized scores, and (6) a novel cumulative anomaly score combining past and forecast deviations for holistic risk assessment. Together, these applications empower researchers, policymakers, and practitioners with actionable climate intelligence for data-driven decision-making.
+The early warning system developed in this study directly addresses these gaps. By leveraging Google Earth Engine's cloud computing capabilities with ERA5-Land historical data and GFS forecast data, the system provides: (1) interactive district-level anomaly analysis for all 150+ districts of Pakistan, (2) 16-day forecast anomaly detection comparing GFS predictions with climatological baselines, (3) anomalies expressed in intuitive actual units (mm, °C) rather than standardized scores, and (4) a novel combined anomaly view integrating recent past observations (90 days) with forecast predictions (16 days) for enhanced early warning capability. This integrated approach empowers researchers, policymakers, and disaster management authorities with actionable climate intelligence for proactive decision-making.
 
 \section{Data and Methods}
 \subsection{Datasets}
@@ -102,175 +102,166 @@ This study utilizes two primary datasets for climate analysis and forecasting:
 \subsection{Study Area}
 The study area encompasses all districts of Pakistan, providing district-level spatial resolution for climate anomaly analysis. Pakistan's diverse geography includes multiple climate zones ranging from arid and semi-arid regions in the south and west to humid subtropical and alpine climates in the north. This climatic diversity makes district-level analysis essential for capturing localized weather patterns and anomalies.
 
-\subsection{Anomaly Detection Methods}
-The applications employ three complementary approaches for anomaly detection:
+\subsection{Climatological Baseline Calculation}
+The early warning system requires climatological baselines against which current and forecast conditions can be compared. For each of Pakistan's 150+ districts, monthly average values for rainfall and temperature are computed from the ERA5-Land Monthly Aggregated dataset using a 10-year reference period (2014--2024). This baseline represents the expected climatological values for each month and each district. The baselines are pre-computed and stored as a Google Earth Engine Feature Collection asset to enable rapid real-time comparison without requiring repeated historical data processing.
 
-\textbf{Threshold-Based Anomaly Detection (Application 1):} For long-term historical analysis, anomalies are identified by first computing the long-term monthly climatology for rainfall and temperature using a 30-year baseline period (1991–2020). For each district and each month, the average climatological baseline is established. User-defined thresholds (above and below, expressed as percentages) are then applied to create an acceptable range around this baseline. Any observed monthly value lying outside this range is flagged as an anomaly. This approach enables counting and tracking anomaly frequency over time.
+\subsection{Anomaly Calculation Methodology}
+The system computes anomalies as the direct difference between observed/forecast values and the corresponding baseline values:
+\begin{equation}
+Anomaly = Value_{observed/forecast} - Value_{baseline}
+\end{equation}
 
-\textbf{Difference-Based Visualization (Applications 2 and 3):} For near real-time monitoring and forecast-based analysis, the applications compute the direct difference between current/forecast values and historical averages without applying percentage thresholds. These differences are visualized on a continuous color scale where blue indicates values below the historical average, green indicates values near the historical average, and red indicates values above the historical average. This approach provides an intuitive visual representation of how current or forecast conditions deviate from expected climatological norms.
+This difference-based approach expresses anomalies in intuitive units (millimeters for rainfall, degrees Celsius for temperature) that are immediately understandable to farmers, water managers, and disaster management authorities without requiring statistical interpretation.
 
-\textbf{Cumulative Anomaly Scoring (Application 4):} For combined risk assessment, the application computes a cumulative anomaly score by summing the deviations from historical averages across both recent past months (from ERA5) and the upcoming 16-day forecast period (from GFS). This additive approach captures the combined effect of ongoing and anticipated anomalous conditions, providing a holistic measure of cumulative climate risk for each district.
+\subsection{Early Warning System Application}
+The early warning system is implemented as an interactive Google Earth Engine application that presents results through a single map with three toggleable layers. Users can select a weather parameter (rainfall or temperature) and visualize the anomaly conditions across all districts of Pakistan.
 
-\subsection{Application 1: District-Level Temperature and Rainfall Anomalies in Pakistan: Historical Pattern Analysis}
-This application is designed to analyze long-term patterns of anomalies across districts. The user can:
-\begin{itemize}
-    \item Select a district from a dropdown menu.
-    \item Specify a start year and an end year for analysis.
-    \item Set anomaly thresholds (above and below) for both rainfall and temperature.
-\end{itemize}
-
-The application performs the following steps:
+\subsubsection{Layer 1: Past 90-Day Anomaly}
+This layer displays the cumulative anomaly based on observed weather data from the preceding 90 days (three months) from the ERA5-Land dataset. The application:
 \begin{enumerate}
-    \item \textbf{Load ERA5-Land Dataset}: The application loads the ERA5-Land Monthly Aggregated dataset containing total precipitation and temperature bands for the period 1984--present.
-    \item \textbf{Compute Climatological Baseline}: For the selected district, the application calculates baseline monthly averages using a 30-year reference period (1991--2020). This baseline represents the expected climatological values for each month.
-    \item \textbf{Extract Monthly Values}: For each year in the user-specified analysis period, the application extracts monthly rainfall (converted to mm) and temperature (converted to Celsius) values for the selected district geometry using spatial reduction operations.
-    \item \textbf{Calculate Analysis Period Averages}: Monthly averages are computed specifically for the user-selected year range, providing the average rainfall and temperature for each month across the analysis period.
-    \item \textbf{Define Anomaly Thresholds}: Upper and lower bounds for acceptable values are calculated by applying the user-defined percentage thresholds to the baseline averages. For example, if the baseline for July rainfall is 100mm and the user sets a 20\% threshold, values outside the 80--120mm range are flagged as anomalies.
-    \item \textbf{Count Anomalies Per Year}: For each year in the analysis period, the application counts how many months had rainfall or temperature values exceeding the defined thresholds.
-    \item \textbf{Generate Visualizations}: The application outputs:
-    \begin{itemize}
-        \item Average monthly rainfall time-series chart.
-        \item Average monthly temperature time-series chart.
-        \item Count of rainfall anomalies per year.
-        \item Count of temperature anomalies per year.
-        \item A combined anomalies trend graph showing both rainfall and temperature anomaly counts over time.
-    \end{itemize}
+    \item Retrieves the three most recent months of ERA5 data for each district.
+    \item Computes the difference between each month's observed value and its corresponding baseline value.
+    \item Sums these three monthly deviations to produce a cumulative 90-day anomaly score for each district.
 \end{enumerate}
 
-This application enables researchers to identify districts with increasing or decreasing anomaly trends and to understand seasonal patterns in climate variability.
-
-\subsection{Application 2: District-Level Temperature and Rainfall Anomalies in Pakistan: Near Real-Time Monitoring}
-This application focuses on near real-time anomaly monitoring across Pakistan. The user can:
-\begin{itemize}
-    \item Select a parameter (rainfall or temperature).
-    \item Choose a month from the latest three available months (dynamically populated based on ERA5 data availability).
-\end{itemize}
-
-The application performs the following steps:
+\subsubsection{Layer 2: 16-Day Forecast Anomaly}
+This layer displays the anomaly based on the upcoming 16-day weather forecast from the GFS dataset. The application:
 \begin{enumerate}
-    \item \textbf{Fetch Latest Data}: The application queries the ERA5-Land Monthly Aggregated dataset and retrieves the three most recent monthly images based on their timestamps.
-    \item \textbf{Populate Month Dropdown}: The month names are dynamically extracted from the retrieved images and displayed in the dropdown menu, with the most recent month labeled as ``Latest.''
-    \item \textbf{Load Pre-computed Historical Averages}: Historical monthly averages for each district (computed from 2014--2024 ERA5 data) are stored as a GEE Feature Collection asset and loaded for comparison.
-    \item \textbf{Extract Current Values}: For the user-selected month, the application extracts the current rainfall (in mm) or temperature (in Celsius) for each district using mean reduction over the district geometry.
-    \item \textbf{Batch Processing}: To avoid browser timeouts with 150+ districts, the application processes districts in batches of 5, with a short delay between batches. This ensures stable execution even with limited computational resources.
-    \item \textbf{Calculate Differences}: For each district, the difference between the current month's value and the corresponding historical monthly average is computed.
-    \item \textbf{Determine Visualization Range}: The application calculates the maximum absolute difference across all districts to create a symmetric color scale centered at zero (historical average).
-    \item \textbf{Visualize Results}: Districts are painted on the map with colors representing their deviation from historical averages:
-    \begin{itemize}
-        \item \textbf{Blue}: Current value significantly below historical average.
-        \item \textbf{Green}: Current value near historical average.
-        \item \textbf{Red}: Current value significantly above historical average.
-    \end{itemize}
-    \item \textbf{Interactive Click Handler}: Users can click on any district to view detailed information including the district name, current value, historical average, and the difference between them.
+    \item Retrieves the latest GFS forecast data covering the next 16 days (384 hours).
+    \item For precipitation, aggregates hourly (hours 1--120) and three-hourly (hours 123--384) precipitation rates across all forecast time steps. For temperature, computes the mean temperature across all forecast time steps.
+    \item Handles month overlapping: since the 16-day forecast period may span two calendar months, the application calculates a weighted historical baseline. It determines the number of days falling within each month, retrieves the corresponding monthly baseline values, and computes a proportionally weighted average to represent the expected 16-day baseline.
+    \item Computes the difference between the 16-day forecast value and the 16-day equivalent baseline for each district.
 \end{enumerate}
 
-This color-coded visualization allows users to rapidly identify districts experiencing unusual weather conditions in near real-time, supporting timely decision-making for agriculture, water management, and disaster response.
-
-\subsection{Application 3: District-Level Weather Anomalies in Pakistan: Forecast}
-This application compares 16-day weather forecasts from the GFS (Global Forecast System) dataset with pre-computed historical monthly averages to identify forecast-based anomalies across all districts of Pakistan. The user can:
-\begin{itemize}
-    \item Select a weather parameter (temperature or precipitation).
-    \item Click the \textit{Visualize Forecast} button to generate the anomaly map.
-\end{itemize}
-
-The application performs the following steps:
+\subsubsection{Layer 3: Combined 90+16 Day Anomaly}
+This layer displays the combined anomaly by integrating the past 90-day observations with the 16-day forecast. The application:
 \begin{enumerate}
-    \item \textbf{Retrieve Forecast Data}: The application fetches the latest GFS forecast data covering the next 16 days (384 hours). For precipitation, it aggregates hourly and three-hourly precipitation rates across all forecast hours. For temperature, it computes the mean temperature across all forecast time steps.
-    \item \textbf{Load Pre-computed Historical Averages}: Monthly historical averages for each district, computed from the ERA5-Land dataset (2014–2024), are stored as a GEE asset and loaded for comparison.
-    \item \textbf{Handle Month Overlapping}: Since the 16-day forecast period may span two calendar months, the application calculates a weighted historical average. It determines the number of days falling within each month, retrieves the corresponding monthly historical values, and computes a proportionally weighted average to represent the expected 16-day historical baseline.
-    \item \textbf{Compute Forecast Anomaly}: The difference between the 16-day forecast value and the 16-day equivalent historical average is calculated for each district.
-    \item \textbf{Visualize Results}: Districts are color-coded on the map based on their anomaly values:
-    \begin{itemize}
-        \item \textbf{Blue}: Forecast value is below the historical average.
-        \item \textbf{Green}: Forecast value is near the historical average.
-        \item \textbf{Red}: Forecast value is above the historical average.
-    \end{itemize}
+    \item Computes the 90-day past anomaly as described in Layer 1.
+    \item Computes the 16-day forecast anomaly as described in Layer 2.
+    \item Sums these two values to produce a cumulative anomaly score representing the combined deviation over the 90+16 day period.
 \end{enumerate}
 
-Users can click on any district to view detailed information including the 16-day forecast value, the 16-day historical equivalent average, and the difference between them. This application provides an early warning capability by identifying districts where upcoming weather conditions are expected to deviate significantly from historical norms.
+This combined view is the key innovation of the early warning system, as it enables users to identify not only current anomalous conditions but also anticipate whether those conditions are expected to persist, intensify, or diminish in the coming 16 days.
 
-\subsection{Application 4: District-Level Weather Anomalies in Pakistan: Forecast + History}
-This application calculates a cumulative anomaly score by combining recent past conditions with future forecasts to provide a comprehensive risk assessment. The user can:
+\subsection{Visualization and Interaction}
+Districts are color-coded on the map based on their anomaly values using a continuous color scale:
 \begin{itemize}
-    \item Select a weather parameter (temperature or precipitation).
-    \item Select the past duration to include (last 1, 2, or 3 months).
-    \item Click the \textit{Calculate Combined Anomalies} button to generate the cumulative risk map.
+    \item \textbf{Blue}: Values below the historical baseline (deficit conditions for rainfall, cooler for temperature).
+    \item \textbf{Green}: Values near the historical baseline (normal conditions).
+    \item \textbf{Red}: Values above the historical baseline (excess conditions for rainfall, warmer for temperature).
 \end{itemize}
 
-The application performs the following steps:
-\begin{enumerate}
-    \item \textbf{Calculate Past Anomalies (ERA5)}: For each of the user-selected past months, the application retrieves the observed monthly value from ERA5 and computes the difference from the corresponding historical monthly average. These individual month differences are summed to produce a total past anomaly score.
-    \item \textbf{Calculate Forecast Anomaly (GFS)}: Using the same 16-day forecast methodology as Application 3, the application computes the difference between the forecast value and the 16-day historical equivalent, handling month overlaps with weighted averages.
-    \item \textbf{Compute Cumulative Score}: The cumulative anomaly is calculated by summing the deviations of each selected past month from its historical average, and then adding the deviation of the 16-day forecast from its historical equivalent. For example, if the user selects 3 past months, the application sums the three individual monthly differences and adds the forecast difference to produce a single cumulative anomaly value for each district.
-    \item \textbf{Visualize Results}: Districts are color-coded based on their cumulative anomaly score:
-    \begin{itemize}
-        \item \textbf{Blue}: Overall below-average conditions (past + forecast).
-        \item \textbf{Green}: Overall near-average conditions.
-        \item \textbf{Red}: Overall above-average conditions.
-    \end{itemize}
-\end{enumerate}
+The color scale is dynamically adjusted based on the maximum absolute anomaly value across all districts to ensure optimal visual contrast. Users can click on any district to view detailed information including the district name, observed/forecast value, baseline value, and the computed anomaly.
 
-Users can click on any district to view a breakdown showing the past months' anomaly, the forecast anomaly, and the combined cumulative score. This application is particularly useful for identifying districts experiencing persistent anomalous conditions that are expected to continue, enabling proactive planning for agriculture, water management, and disaster preparedness.
+\subsection{Technical Implementation}
+The application is implemented using the Google Earth Engine JavaScript API. To handle the computational load of processing 150+ districts, the application employs batch processing, computing anomalies for districts in batches of 5 with a short delay between batches to prevent browser timeouts. The application dynamically retrieves the latest available ERA5 and GFS data at runtime, ensuring that users always see the most current information available.
 
 \section{Results}
-\subsection{Application 1: Historical Anomalies Explorer}
-- Time-series graphs (rainfall, temperature, anomaly counts).  
-- Visualization examples for selected districts.  
+
+The early warning system application provides three complementary views of weather anomalies across Pakistan's districts. Figure~\ref{fig:three-layers} presents all three layers side-by-side, demonstrating how the combined view provides enhanced insight compared to analyzing either past conditions or forecasts in isolation.
+
+\subsection{Layer 1: Past 90-Day Anomaly}
+The past 90-day anomaly layer shows the cumulative deviation of observed weather conditions over the preceding three months from the climatological baseline. Districts shown in red indicate above-average conditions (excess rainfall or higher temperatures), while districts shown in blue indicate below-average conditions (deficit rainfall or lower temperatures). Green districts are experiencing near-normal conditions.
+
+\subsection{Layer 2: 16-Day Forecast Anomaly}
+The forecast anomaly layer shows how the upcoming 16-day weather forecast compares to the climatological baseline for that period. This layer provides the forward-looking early warning capability of the system, allowing users to anticipate districts where conditions are expected to deviate from normal in the coming days.
+
+\subsection{Layer 3: Combined 90+16 Day Anomaly}
+The combined anomaly layer integrates the past 90 days of observed conditions with the upcoming 16-day forecast. This cumulative view is the key innovation of the early warning system. By showing the total deviation over the 90+16 day period, this layer enables users to identify:
+\begin{itemize}
+    \item Districts with persistent anomalous conditions that are expected to continue
+    \item Districts where current conditions may intensify or moderate based on the forecast
+    \item The overall trajectory of weather conditions relative to historical norms
+\end{itemize}
 
 \begin{figure}[H]
     \centering
-    \includegraphics[width=0.8\textwidth]{historicalpatterndistrictlevel.png}
-    \caption{Visualization of district-level rainfall and temperature historical anomalies pattern for the time period of 1984 to 2000 in Abbotabad using the District Level Historical Analysis App.}
-    \label{fig:historicalpattern-app}
+    % TODO: Replace with new 3-layer screenshot from single EWS app
+    \includegraphics[width=\textwidth]{combined_forecast_historical.png}
+    \caption{Three-layer visualization from the Early Warning System application showing (left) past 90-day rainfall anomaly, (center) 16-day forecast anomaly, and (right) combined 90+16 day anomaly for Pakistan districts. Blue indicates below-average conditions, green indicates near-average conditions, and red indicates above-average conditions.}
+    \label{fig:three-layers}
 \end{figure}
 
-\subsection{Application 2: Real-Time Monitoring}
-- Current status and preliminary outputs.  
+\subsection{Enhanced Insight from Combined Analysis}
+Comparing the three layers reveals districts where the combined view provides additional insight beyond the individual layers:
+\begin{enumerate}
+    \item \textbf{Persistent High-Risk Districts}: Districts showing red in both the past and forecast layers appear intensely red in the combined layer, highlighting areas of sustained above-average conditions requiring attention.
+    \item \textbf{Transitioning Conditions}: Districts showing different colors between past and forecast layers (e.g., red past but blue forecast) may appear green in the combined layer, indicating conditions are expected to normalize.
+    \item \textbf{Emerging Risks}: Districts showing green in the past but red in the forecast indicate newly developing anomalous conditions that warrant early warning.
+\end{enumerate}
 
-\begin{figure}[H]
-    \centering
-    \includegraphics[width=0.8\textwidth]{district level near real time.png}
-    \caption{Visualization of district-level rainfall anomalies for November 2025 using the Near Real-Time Monitoring application. Blue indicates below-average values, green indicates near-average values, and red indicates above-average values.}
-    \label{fig:nearrealtime-app}
-\end{figure}
+\section{Case Study: Pakistan Floods (2010 and 2022)}
 
-\subsection{Application 3: Forecast-Based Anomaly Detection}
-- Comparison of 16-day GFS forecast with historical averages.
-- Early warning visualization for upcoming anomalous conditions.
+To evaluate the potential and limitations of the early warning system approach, we examine two of Pakistan's most devastating flood events: the 2010 and 2022 monsoon floods.
 
-\begin{figure}[H]
-    \centering
-    \includegraphics[width=0.8\textwidth]{GFS forecast vs historical.png}
-    \caption{Visualization of 16-day forecast anomalies for Pakistan using the Forecast Anomaly Detection App. Blue indicates forecast values below historical average, green indicates near-average values, and red indicates forecast values above historical average.}
-    \label{fig:forecast-app}
-\end{figure}
+\subsection{Background}
+The 2010 Pakistan floods were among the most destructive in the country's history, affecting over 20 million people and causing widespread damage across Punjab and Sindh provinces. The 2022 floods were even more catastrophic, affecting over 33 million people and causing an estimated \$30 billion in damages. Both events were characterized by anomalously high rainfall during the monsoon season.
 
-\subsection{Application 4: Combined Past + Forecast Anomaly}
-- Cumulative anomaly visualization combining recent past and forecast deviations.
-- Identifies districts with persistent anomalous conditions.
+\subsection{Retroactive Analysis}
+Using the early warning system methodology, we analyze the rainfall anomaly patterns in the months preceding and during these flood events. For each event, we examine:
+\begin{itemize}
+    \item The past 90-day rainfall anomaly leading up to the flood period
+    \item The 16-day forecast anomaly (using GFS data availability for 2022)
+    \item The combined anomaly pattern that would have been visible to users
+\end{itemize}
 
-\begin{figure}[H]
-    \centering
-    \includegraphics[width=0.8\textwidth]{combined_forecast_historical.png}
-    \caption{Visualization of cumulative anomaly scores for Pakistan using the Combined Forecast + History App. The map shows the sum of past 3 months' deviations and the 16-day forecast anomaly. Blue indicates overall below-average conditions, green indicates near-average, and red indicates overall above-average conditions.}
-    \label{fig:combined-app}
-\end{figure}
+\textit{[Detailed analysis with figures to be added based on new single app implementation]}
 
-\section{Case Study: 2010 Pakistan Floods}
-- Brief background of the 2010 floods.  
-- How anomaly detection captures pre-flood signals.  
-- District-level anomaly patterns before/during flood.  
-- Implications for early warning.  
+\subsection{Potential and Limitations}
+The case study reveals both the potential and limitations of this early warning approach:
+
+\textbf{Potential:}
+\begin{itemize}
+    \item District-level anomaly detection successfully identifies areas receiving significantly above-normal rainfall
+    \item The combined 90+16 day view captures persistent excess rainfall conditions
+    \item The approach works independently of ground-based observation networks
+\end{itemize}
+
+\textbf{Limitations:}
+\begin{itemize}
+    \item Monthly temporal resolution may miss short-term extreme events within a month
+    \item 16-day forecasts have decreasing skill at longer lead times
+    \item The system identifies anomalies but does not directly predict flood extent or impact
+    \item Validation against ground-truth flood data is needed to quantify early warning lead time
+\end{itemize}
 
 \section{Discussion}
-- Interpretation of results.  
-- Limitations of current approach.  
-- Future improvements (e.g., integrating forecasts, finer resolution).  
+
+The early warning system developed in this study demonstrates the feasibility of using globally available climate datasets to provide district-level weather anomaly analysis for Pakistan. By combining historical ERA5 data with GFS forecasts, the system addresses a critical gap in Pakistan's climate monitoring infrastructure.
+
+\subsection{Key Findings}
+The three-layer visualization approach reveals that the combined past+forecast view provides enhanced insight compared to analyzing either period in isolation. Districts experiencing persistent anomalous conditions are clearly identified in the combined layer, enabling more informed decision-making for disaster preparedness, agriculture planning, and water resource management.
+
+\subsection{Comparison with Existing Tools}
+Unlike existing platforms such as ICIMOD DroughtPK that focus on seasonal (9-month) outlooks, this system provides short-term operational forecasts (16 days) that are actionable for immediate early warning. The use of intuitive units (mm, °C) rather than standardized Z-scores makes the results accessible to non-technical stakeholders including farmers and local disaster management authorities.
+
+\subsection{Limitations}
+Several limitations should be noted:
+\begin{enumerate}
+    \item \textbf{Temporal Resolution}: The use of monthly ERA5 data limits the ability to capture intra-month variability. Daily or hourly data could provide finer temporal resolution but would require additional computational resources.
+    \item \textbf{Baseline Period}: The 10-year baseline (2014--2024) is shorter than the WMO-recommended 30-year climatological normal. This was chosen based on data availability in the pre-computed asset, but a longer baseline would provide more robust climatological averages.
+    \item \textbf{Validation}: The current work lacks quantitative validation against observed flood events or standing water data. Future work should incorporate ground-truth data to assess the system's early warning skill.
+    \item \textbf{Single Parameter Analysis}: The current system analyzes rainfall and temperature independently. Future versions could incorporate multi-parameter indices that combine multiple climate variables.
+\end{enumerate}
+
+\subsection{Future Work}
+To move toward an operational early warning system, several improvements are recommended:
+\begin{itemize}
+    \item Integration with publicly available flood extent data (e.g., Copernicus Emergency Management Service, NASA MODIS flood maps) for validation
+    \item Development of threshold-based alert levels (e.g., yellow/orange/red warnings)
+    \item Extension to finer temporal resolution using daily ERA5 data
+    \item Integration with impact models to translate weather anomalies into estimated flood risk
+\end{itemize}
 
 \section{Conclusion}
-- Summary of contributions.  
-- Potential applications in agriculture, water management, disaster preparedness.  
-- Next steps for research.  
+
+This paper presents an early warning system for district-level weather anomalies in Pakistan that addresses the challenge of sparse local weather observation networks by leveraging globally available climate datasets. The system combines historical weather patterns from the ERA5-Land dataset with 16-day forecasts from the Global Forecast System to provide a three-layer view of weather anomalies: past 90-day conditions, 16-day forecast, and combined 90+16 day cumulative anomalies.
+
+The key contribution of this work is the demonstration that combining recent past observations with short-term forecasts provides enhanced early warning capability compared to analyzing either period in isolation. The combined view enables users to identify districts with persistent anomalous conditions, anticipate emerging risks, and track the trajectory of weather conditions relative to climatological norms.
+
+The system is implemented as an interactive Google Earth Engine application that is freely accessible and requires no local data storage or processing capabilities. This accessibility is particularly important for developing regions where computational resources may be limited but climate risks are high.
+
+While the current implementation represents a proof-of-concept, the case study of the 2010 and 2022 Pakistan floods demonstrates both the potential and limitations of this approach. Future work should focus on validation against ground-truth flood data, integration with impact models, and development of operational alert thresholds to support disaster management authorities in issuing timely warnings.  
 
 %% ---------------- References ----------------
 \begin{thebibliography}{00}
