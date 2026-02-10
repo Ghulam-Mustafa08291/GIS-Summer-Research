@@ -633,11 +633,11 @@ function addClickHandler(map, fc, parameter) {
       
       var content = 
         '━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n' +
-        '📊 Past 90-Day Anomaly:\n' +
+        ' Past 90-Day Anomaly:\n' +
         '   ' + pastVal + ' ' + unit + ' ' + pastStatus + '\n\n' +
-        '🔮 16-Day Forecast Anomaly:\n' +
+        ' 16-Day Forecast Anomaly:\n' +
         '   ' + forecastVal + ' ' + unit + ' ' + forecastStatus + '\n\n' +
-        '⚡ Combined 90+16 Day Anomaly:\n' +
+        'Combined 90+16 Day Anomaly:\n' +
         '   ' + combinedVal + ' ' + unit + ' ' + combinedStatus + '\n' +
         '━━━━━━━━━━━━━━━━━━━━━━━━━━━━';
       
