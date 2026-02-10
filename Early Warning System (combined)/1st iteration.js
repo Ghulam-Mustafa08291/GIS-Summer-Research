@@ -475,7 +475,7 @@ function createSingleMapWithLayers(fc, maxPast, maxForecast, maxCombined, parame
   mainMap.setOptions('ROADMAP');
   
   // Color palette: Blue (below) -> Green (normal) -> Red (above)
-  var palette = ['#2166ac', '#67a9cf', '#d1e5f0', '#f7f7f7', '#fddbc7', '#ef8a62', '#b2182b'];
+  var palette = ['#2166ac', '#67a9cf', '#a6dba0', '#4daf4a', '#fdae61', '#ef8a62', '#b2182b'];
   
   // Create styled layers for each metric
   // Layer 1: Past 90-Day Anomaly
@@ -570,7 +570,7 @@ function addLegend(map, parameter, maxVal) {
     style: {fontWeight: 'bold', fontSize: '18px', margin: '0 0 12px 0'}
   }));
 
-  var palette = ['#2166ac', '#67a9cf', '#d1e5f0', '#f7f7f7', '#fddbc7', '#ef8a62', '#b2182b'];
+  var palette = ['#2166ac', '#67a9cf', '#a6dba0', '#4daf4a', '#fdae61', '#ef8a62', '#b2182b'];
   
   var colorBar = ui.Panel({layout: ui.Panel.Layout.flow('horizontal')});
   
