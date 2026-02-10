@@ -649,8 +649,8 @@ function addClickHandler(map, fc, parameter) {
 // Simple status based on whether value is above or below baseline
 function getAnomalyStatus(value) {
   if (value === undefined || value === null) return '';
-  if (value > 0) return '🔴 (Above Baseline)';
-  if (value < 0) return '🔵 (Below Baseline)';
+  if (value > 0) return ' (Above Baseline)';
+  if (value < 0) return ' (Below Baseline)';
   return '(At Baseline)';
 }
 
