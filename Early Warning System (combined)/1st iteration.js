@@ -83,7 +83,7 @@ panel.add(parameterSelect);
 
 // Generate Button - FIXED: Removed blue border, made text permanently black
 var analyzeButton = ui.Button({
-  label: '🔮 Generate Early Warning Maps',
+  label: 'Generate Early Warning Maps',
   onClick: function() { 
     var parameter = parameterSelect.getValue(); 
     if (parameter) { 
@@ -382,7 +382,7 @@ function updateVisualizationWithBatching(parameter) {
       }
       
       var currentBatchNumber = Math.floor(startIndex / BATCH_SIZE) + 1;
-      updateLoadingIndicator("Processing districts: Batch " + currentBatchNumber + " of " + numBatches + "...");
+      updateLoadingIndicator("Please wait whille data is being loaded, do not press on Generate Early Warning Maps button again...");
       
       var end = Math.min(startIndex + BATCH_SIZE, total);
       var batchCol = ee.FeatureCollection(districtsList.slice(startIndex, end));
