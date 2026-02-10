@@ -105,13 +105,13 @@ var analyzeButton = ui.Button({
 panel.add(analyzeButton);
 
 // Color Legend explanation
-panel.add(ui.Label({
-  value: '\n📊 Color Legend:\n' +
-       '🔵 Blue: Below Baseline (deficit/cooler)\n' +
-       '🟢 Green: Near Baseline (normal)\n' +
-       '🔴 Red: Above Baseline (excess/warmer)',
-  style: { fontSize: '12px', margin: '15px 0 0 0', whiteSpace: 'pre-line', color: '#666' }
-}));
+// panel.add(ui.Label({
+//   value: '\n📊 Color Legend:\n' +
+//       '🔵 Blue: Below Baseline (deficit/cooler)\n' +
+//       '🟢 Green: Near Baseline (normal)\n' +
+//       '🔴 Red: Above Baseline (excess/warmer)',
+//   style: { fontSize: '12px', margin: '15px 0 0 0', whiteSpace: 'pre-line', color: '#666' }
+// }));
 
 // Data source info
 var dateInfo = ui.Label({ 
