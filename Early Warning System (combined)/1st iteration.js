@@ -83,7 +83,7 @@ panel.add(parameterSelect);
 
 // Generate Button - FIXED: Removed blue border, made text permanently black
 var analyzeButton = ui.Button({
-  label: '🔮 Generate Early Warning Map',
+  label: '🔮 Generate Early Warning Maps',
   onClick: function() { 
     var parameter = parameterSelect.getValue(); 
     if (parameter) { 
