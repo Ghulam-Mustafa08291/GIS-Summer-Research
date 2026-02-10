@@ -630,11 +630,12 @@ function addClickHandler(map, fc, parameter) {
   });
 }
 
+// Simple status based on whether value is above or below baseline
 function getAnomalyStatus(value) {
   if (value === undefined || value === null) return '';
-  if (value > 10) return '🔴 (Above Normal)';
-  if (value < -10) return '🔵 (Below Normal)';
-  return '🟢 (Near Normal)';
+  if (value > 0) return '🔴 (Above Baseline)';
+  if (value < 0) return '🔵 (Below Baseline)';
+  return '(At Baseline)';
 }
 
 
