@@ -174,6 +174,7 @@ function hideLoadingIndicator() {
 // NEW: Show loading indicator specifically for district data fetching
 function showDistrictLoadingIndicator(districtName) {
   clearDistrictPanel();
+  keepRotating = true;
   districtInfoPanel = ui.Panel({ 
     style: { backgroundColor: '#e8f4fd', border: '2px solid #3498db', margin: '15px 0', padding: '15px', borderRadius: '5px' } 
   });
@@ -188,12 +189,28 @@ function showDistrictLoadingIndicator(districtName) {
     value: messageText, 
     style: { fontSize: '13px', color: '#34495e', fontStyle: 'italic' } 
   });
-  districtInfoPanel.add(districtInfoTitle).add(loadingMessage);
+  districtLoadingSymbol = ui.Label({ 
+    value: '🌍', 
+    style: { fontSize: '24px', color: '#3498db', textAlign: 'center', fontWeight: 'bold' } 
+  });
+  districtInfoPanel.add(districtInfoTitle).add(loadingMessage).add(districtLoadingSymbol);
   panel.add(districtInfoPanel);
   panelDistrictWidgets.push(districtInfoPanel);
+  
+  var rotationSymbols = ['🌍', '🌎', '🌏']; 
+  var currentSymbolIndex = 0;
+  var rotateSymbol = function() { 
+    if (districtLoadingSymbol && districtInfoPanel && keepRotating) { 
+      currentSymbolIndex = (currentSymbolIndex + 1) % rotationSymbols.length; 
+      districtLoadingSymbol.setValue(rotationSymbols[currentSymbolIndex]); 
+      ui.util.setTimeout(rotateSymbol, 400); 
+    } 
+  };
+  ui.util.setTimeout(rotateSymbol, 400);
 }
 
 function showDistrictInfo(title, content) {
+  keepRotating = false;
   clearDistrictPanel();
   districtInfoPanel = ui.Panel({ 
     style: { backgroundColor: '#f0f9ff', border: '2px solid #3498db', margin: '15px 0', padding: '15px', borderRadius: '5px' } 
