@@ -96,10 +96,9 @@ var analyzeButton = ui.Button({
     width: '340px', 
     fontWeight: 'bold', 
     fontSize: '15px',
-    backgroundColor: '#3498db', 
-    color: '#000000',  // Changed to permanent black
-    padding: '8px',
-    border: 'none'  // Explicitly set border to none
+    backgroundColor: '#f0f0f0', 
+    color: '#000000',
+    padding: '1px'
   }
 });
 panel.add(analyzeButton);
@@ -115,7 +114,7 @@ panel.add(analyzeButton);
 
 // Data source info
 var dateInfo = ui.Label({ 
-  value: '\nData: ECMWF ERA5-Land (historical) & NOAA GFS (forecast)\nBaseline: 10-year average (2014-2024)', 
+  value: '\nData: ECMWF ERA5-Land Aggregated (historical) & NOAA GFS (forecast)\nBaseline: 10-year average (2014-2024)', 
   style: { fontSize: '11px', margin: '10px 0 0 0', fontStyle: 'italic', color: '#888' }
 });
 panel.add(dateInfo);
