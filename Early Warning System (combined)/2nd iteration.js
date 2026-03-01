@@ -798,15 +798,15 @@ function addClickHandler(map, fc, parameter) {
       
       var content = 
         '━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n' +
-        '📅 Past 90 Days (per day):\n' +
+        'Past 90 Days (per day):\n' +
         '   Observed:     ' + fmt(props.past_value) + ' ' + unit + '\n' +
         '   Baseline:     ' + fmt(props.past_baseline) + ' ' + unit + '\n' +
         '   Difference:  ' + fmtDiff(props.past_diff) + ' ' + unit + ' ' + pastStatus + '\n\n' +
-        '🔮 16-Day Forecast (per day):\n' +
+        '16-Day Forecast (per day):\n' +
         '   Forecasted:  ' + fmt(props.forecast_value) + ' ' + unit + '\n' +
         '   Baseline:     ' + fmt(props.forecast_baseline) + ' ' + unit + '\n' +
         '   Difference:  ' + fmtDiff(props.forecast_diff) + ' ' + unit + ' ' + forecastStatus + '\n\n' +
-        '📊 Combined (per day average):\n' +
+        'Combined (per day average):\n' +
         '   Value:         ' + fmt(props.combined_value) + ' ' + unit + '\n' +
         '   Baseline:     ' + fmt(props.combined_baseline) + ' ' + unit + '\n' +
         '   Difference:  ' + fmtDiff(props.combined_diff) + ' ' + unit + ' ' + combinedStatus + '\n' +
