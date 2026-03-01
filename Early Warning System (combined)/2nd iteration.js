@@ -200,6 +200,10 @@ var analyzeButton = ui.Button({
     var parameter = parameterSelect.getValue(); 
     if (parameter) { 
       clearDistrictPanel();
+      // Clear existing map layers before regenerating
+      if (mainMap) {
+        mainMap.layers().reset();
+      }
       updateVisualizationWithBatching(parameter); 
     } 
   },
@@ -223,6 +227,9 @@ var dateInfo = ui.Label({
 panel.add(dateInfo);
 
 ui.root.insert(0, panel);
+
+// Center the default map on Pakistan on initial load
+Map.setCenter(69.3451, 30.3753, 6);
 
 
 // ===========================================================================================
@@ -813,9 +820,9 @@ function addClickHandler(map, fc, parameter) {
 // Simple status based on whether value is above or below baseline
 function getAnomalyStatus(value) {
   if (value === undefined || value === null) return '';
-  if (value > 0) return '↑ Above';
-  if (value < 0) return '↓ Below';
-  return '— At Baseline';
+  if (value > 0) return '(Above Baseline)';
+  if (value < 0) return '(Below Baseline)';
+  return '(At Baseline)';
 }
 
 
