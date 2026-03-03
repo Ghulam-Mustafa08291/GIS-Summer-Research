@@ -3,12 +3,20 @@ stadning water datasets:
 time period: 2000-2018
 global coverage, can filter this by countries,
 cadence not written
+pixel size=30meters
+it tells how many days did water stay there, so can count the flood severtiy by looking at the number of days, we can count the 
+"flooded" pixels (1)
+->so we can calculate flooded area and flood severity
 
 
 2)https://developers.google.com/earth-engine/datasets/catalog/JRC_GSW1_4_MonthlyHistory#description
 time period=1984- 2022 jan
 Global coverage
 cadence= monthly
+pixel size=30 meters
+in image properties it has month and year so we can see for a specific month of a year that how much area was covered in water, so can check 
+during flood times that this much area was covered during that particular month of that year for a specific district
+
 
 3)https://data.humdata.org/organization/unosat?groups=pak
 this site has many links, the ones suitable for pakistan are:
