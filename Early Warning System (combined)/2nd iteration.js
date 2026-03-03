@@ -93,8 +93,9 @@ var parameterSelect = ui.Select({
 panel.add(parameterSelect);
 
 // --- CUSTOM COLOR THRESHOLD DROPDOWNS ---
-panel.add(ui.Label('Set Anomaly Color Thresholds (per day):', 
-  {fontWeight: 'bold', fontSize: '14px', margin: '10px 0 5px 0'}));
+var thresholdsTitle = ui.Label('Set Anomaly Color Thresholds (precipitation/day or total °C):', 
+  {fontWeight: 'bold', fontSize: '13px', margin: '10px 0 5px 0'});
+panel.add(thresholdsTitle);
 
 panel.add(ui.Label('Values beyond these thresholds will be shown as max red/blue.', 
   {fontSize: '11px', margin: '0 0 10px 0', color: '#888', fontStyle: 'italic'}));
@@ -146,6 +147,7 @@ panel.add(blueThresholdSelect);
 // Function to update threshold dropdown options based on parameter
 function updateThresholdDropdowns(parameter) {
   if (parameter === 'precipitation') {
+    thresholdsTitle.setValue('Set Anomaly Color Thresholds (per day):');
     redThresholdSelect.items().reset([
       {label: '+1 mm/day', value: 1},
       {label: '+2 mm/day', value: 2},
@@ -168,28 +170,28 @@ function updateThresholdDropdowns(parameter) {
     blueThresholdSelect.setValue(-5);
     currentBlueThreshold = -5;
   } else {
-    // Temperature thresholds
+    // Temperature thresholds (absolute difference from baseline)
+    thresholdsTitle.setValue('Set Anomaly Color Thresholds (total difference):');
     redThresholdSelect.items().reset([
-      {label: '+1 °C/day', value: 1},
-      {label: '+2 °C/day', value: 2},
-      {label: '+3 °C/day', value: 3},
-      {label: '+5 °C/day', value: 5},
-      {label: '+8 °C/day', value: 8},
-      {label: '+10 °C/day', value: 10}
+      {label: '+1 °C', value: 1},
+      {label: '+2 °C', value: 2},
+      {label: '+5 °C', value: 5},
+      {label: '+20 °C', value: 20},
+      {label: '+40 °C', value: 40}
     ]);
-    redThresholdSelect.setValue(3);
-    currentRedThreshold = 3;
+    redThresholdSelect.setValue(2);
+    currentRedThreshold = 2;
     
     blueThresholdSelect.items().reset([
-      {label: '-1 °C/day', value: -1},
-      {label: '-2 °C/day', value: -2},
-      {label: '-3 °C/day', value: -3},
-      {label: '-5 °C/day', value: -5},
-      {label: '-8 °C/day', value: -8},
-      {label: '-10 °C/day', value: -10}
+      {label: '-1 °C', value: -1},
+      {label: '-2 °C', value: -2},
+      {label: '-5 °C', value: -5},
+      {label: '-10 °C', value: -10},
+      {label: '-20 °C', value: -20},
+      {label: '-40 °C', value: -40}
     ]);
-    blueThresholdSelect.setValue(-3);
-    currentBlueThreshold = -3;
+    blueThresholdSelect.setValue(-2);
+    currentBlueThreshold = -2;
   }
 }
 
@@ -221,7 +223,7 @@ panel.add(analyzeButton);
 
 // Data source info
 var dateInfo = ui.Label({ 
-  value: '\nData: ECMWF ERA5-Land Aggregated (historical) & NOAA GFS (forecast)\nBaseline: 10-year average (2014-2024)\nAll values standardized to per-day units', 
+  value: '\nData: ECMWF ERA5-Land Aggregated (historical) & NOAA GFS (forecast)\nBaseline: 10-year average (2014-2024)', 
   style: { fontSize: '11px', margin: '10px 0 0 0', fontStyle: 'italic', color: '#888' }
 });
 panel.add(dateInfo);
@@ -500,25 +502,27 @@ function calculateCombinedAnomaly(district, parameter, gfsData, historicalData, 
         pastBaselineStd = pastBaseTotal.divide(PAST_DAYS);
         pastDiffStd = pastValueStd.subtract(pastBaselineStd);
       } else {
-        // Temperature: Sum over 3 months exactly like 1st iteration
+        // Temperature: Calculate true average over 3 months
         pastObsTotal = ee.Number(vals1.get(0)).add(ee.Number(vals2.get(0))).add(ee.Number(vals3.get(0)));
         pastBaseTotal = ee.Number(vals1.get(1)).add(ee.Number(vals2.get(1))).add(ee.Number(vals3.get(1)));
-        pastValueStd = pastObsTotal;
-        pastBaselineStd = pastBaseTotal;
+        pastValueStd = pastObsTotal.divide(3);
+        pastBaselineStd = pastBaseTotal.divide(3);
         pastDiffStd = pastValueStd.subtract(pastBaselineStd);
       }
       
       // --- PART 3: COMBINE (average of anomalies for precip, sum for temp) ---
       var combinedDiffStd, combinedValueStd, combinedBaselineStd;
       if (parameter === 'precipitation') {
-        combinedDiffStd = pastDiffStd.add(forecastDiffStd).divide(2);
-        combinedValueStd = pastValueStd.add(forecastValueStd).divide(2);
-        combinedBaselineStd = pastBaselineStd.add(forecastBaselineStd).divide(2);
+        var totalDays = PAST_DAYS + FORECAST_DAYS;
+        combinedValueStd = pastValueStd.multiply(PAST_DAYS).add(forecastValueStd.multiply(FORECAST_DAYS)).divide(totalDays);
+        combinedBaselineStd = pastBaselineStd.multiply(PAST_DAYS).add(forecastBaselineStd.multiply(FORECAST_DAYS)).divide(totalDays);
+        combinedDiffStd = combinedValueStd.subtract(combinedBaselineStd);
       } else {
-        // Temperature: sum exactly like 1st iteration
-        combinedDiffStd = pastDiffStd.add(forecastDiffStd);
-        combinedValueStd = pastValueStd.add(forecastValueStd);
-        combinedBaselineStd = pastBaselineStd.add(forecastBaselineStd);
+        // Temperature: Weighted average of past 90 days and forecast 16 days
+        var totalDays = PAST_DAYS + FORECAST_DAYS;
+        combinedValueStd = pastValueStd.multiply(PAST_DAYS).add(forecastValueStd.multiply(FORECAST_DAYS)).divide(totalDays);
+        combinedBaselineStd = pastBaselineStd.multiply(PAST_DAYS).add(forecastBaselineStd.multiply(FORECAST_DAYS)).divide(totalDays);
+        combinedDiffStd = combinedValueStd.subtract(combinedBaselineStd);
       }
 
       return ee.Feature(district).set({
