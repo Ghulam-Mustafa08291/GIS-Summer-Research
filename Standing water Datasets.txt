@@ -1,0 +1,17 @@
+stadning water datasets:
+1)https://developers.google.com/earth-engine/datasets/catalog/GLOBAL_FLOOD_DB_MODIS_EVENTS_V1#image-properties
+time period: 2000-2018
+global coverage, can filter this by countries,
+cadence not written
+
+
+2)https://developers.google.com/earth-engine/datasets/catalog/JRC_GSW1_4_MonthlyHistory#description
+time period=1984- 2022 jan
+Global coverage
+cadence= monthly
+
+3)https://data.humdata.org/organization/unosat?groups=pak
+this site has many links, the ones suitable for pakistan are:
+->https://data.humdata.org/dataset/satellite-detected-water-extents-from-26-august-to-7-september-2025-over-pakistan (this has cumulative water from 26augto 7 sept  over pakistan)
+
+->https://data.humdata.org/dataset/satellite-detected-water-extents-in-punjab-province-pakistan-as-of-27-28-august-2025
