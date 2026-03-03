@@ -446,17 +446,18 @@ function calculateCombinedAnomaly(district, parameter, gfsData, historicalData, 
          ));
       }
       
-      // Per-day values for forecast
-      var forecastValuePerDay, forecastBaselinePerDay, forecastDiffPerDay;
+      // Standardized values for forecast
+      var forecastValueStd, forecastBaselineStd, forecastDiffStd;
       if (parameter === 'precipitation') {
-        forecastValuePerDay = forecastValueTotal.divide(FORECAST_DAYS);
-        forecastBaselinePerDay = histForecastValueTotal.divide(FORECAST_DAYS);
-        forecastDiffPerDay = forecastValuePerDay.subtract(forecastBaselinePerDay);
+        // Precipitation: convert to per-day (mm/day)
+        forecastValueStd = forecastValueTotal.divide(FORECAST_DAYS);
+        forecastBaselineStd = histForecastValueTotal.divide(FORECAST_DAYS);
+        forecastDiffStd = forecastValueStd.subtract(forecastBaselineStd);
       } else {
-        // Temperature: forecastValueTotal is already mean temp (in K), convert to C
-        forecastValuePerDay = forecastValueTotal.subtract(273.15);
-        forecastBaselinePerDay = histForecastValueTotal;
-        forecastDiffPerDay = forecastValuePerDay.subtract(forecastBaselinePerDay);
+        // Temperature: use total directly exactly like 1st iteration (no per-day, no K to C conversion for GFS)
+        forecastValueStd = forecastValueTotal; // GFS is already in Celsius!
+        forecastBaselineStd = histForecastValueTotal;
+        forecastDiffStd = forecastValueStd.subtract(forecastBaselineStd);
       }
 
 
@@ -489,41 +490,49 @@ function calculateCombinedAnomaly(district, parameter, gfsData, historicalData, 
       var vals2 = ee.List(calculateEraValues(era5List.get(1)));
       var vals3 = ee.List(calculateEraValues(era5List.get(2)));
       
-      var pastObsTotal, pastBaseTotal, pastDiffPerDay, pastValuePerDay, pastBaselinePerDay;
+      var pastObsTotal, pastBaseTotal, pastDiffStd, pastValueStd, pastBaselineStd;
       
       if (parameter === 'precipitation') {
-        // Sum observed and baseline over 3 months, then divide by 90 for per-day
+        // Precipitation: sum over 3 months, then divide by 90 for per-day (mm/day)
         pastObsTotal = ee.Number(vals1.get(0)).add(ee.Number(vals2.get(0))).add(ee.Number(vals3.get(0)));
         pastBaseTotal = ee.Number(vals1.get(1)).add(ee.Number(vals2.get(1))).add(ee.Number(vals3.get(1)));
-        pastValuePerDay = pastObsTotal.divide(PAST_DAYS);
-        pastBaselinePerDay = pastBaseTotal.divide(PAST_DAYS);
-        pastDiffPerDay = pastValuePerDay.subtract(pastBaselinePerDay);
+        pastValueStd = pastObsTotal.divide(PAST_DAYS);
+        pastBaselineStd = pastBaseTotal.divide(PAST_DAYS);
+        pastDiffStd = pastValueStd.subtract(pastBaselineStd);
       } else {
-        // Temperature: average over 3 months (already in °C per month, so average is per-day equivalent)
+        // Temperature: Sum over 3 months exactly like 1st iteration
         pastObsTotal = ee.Number(vals1.get(0)).add(ee.Number(vals2.get(0))).add(ee.Number(vals3.get(0)));
         pastBaseTotal = ee.Number(vals1.get(1)).add(ee.Number(vals2.get(1))).add(ee.Number(vals3.get(1)));
-        pastValuePerDay = pastObsTotal.divide(3);      // Average temp over 3 months
-        pastBaselinePerDay = pastBaseTotal.divide(3);
-        pastDiffPerDay = pastValuePerDay.subtract(pastBaselinePerDay);
+        pastValueStd = pastObsTotal;
+        pastBaselineStd = pastBaseTotal;
+        pastDiffStd = pastValueStd.subtract(pastBaselineStd);
       }
       
-      // --- PART 3: COMBINE (average of per-day anomalies) ---
-      var combinedDiffPerDay = pastDiffPerDay.add(forecastDiffPerDay).divide(2);
-      var combinedValuePerDay = pastValuePerDay.add(forecastValuePerDay).divide(2);
-      var combinedBaselinePerDay = pastBaselinePerDay.add(forecastBaselinePerDay).divide(2);
+      // --- PART 3: COMBINE (average of anomalies for precip, sum for temp) ---
+      var combinedDiffStd, combinedValueStd, combinedBaselineStd;
+      if (parameter === 'precipitation') {
+        combinedDiffStd = pastDiffStd.add(forecastDiffStd).divide(2);
+        combinedValueStd = pastValueStd.add(forecastValueStd).divide(2);
+        combinedBaselineStd = pastBaselineStd.add(forecastBaselineStd).divide(2);
+      } else {
+        // Temperature: sum exactly like 1st iteration
+        combinedDiffStd = pastDiffStd.add(forecastDiffStd);
+        combinedValueStd = pastValueStd.add(forecastValueStd);
+        combinedBaselineStd = pastBaselineStd.add(forecastBaselineStd);
+      }
 
       return ee.Feature(district).set({
-        // Per-day anomaly differences (used for map coloring)
-        'combined_diff': combinedDiffPerDay,
-        'forecast_diff': forecastDiffPerDay,
-        'past_diff': pastDiffPerDay,
-        // Per-day calculated values
-        'forecast_value': forecastValuePerDay,
-        'forecast_baseline': forecastBaselinePerDay,
-        'past_value': pastValuePerDay,
-        'past_baseline': pastBaselinePerDay,
-        'combined_value': combinedValuePerDay,
-        'combined_baseline': combinedBaselinePerDay,
+        // Anomaly differences (used for map coloring)
+        'combined_diff': combinedDiffStd,
+        'forecast_diff': forecastDiffStd,
+        'past_diff': pastDiffStd,
+        // Calculated values
+        'forecast_value': forecastValueStd,
+        'forecast_baseline': forecastBaselineStd,
+        'past_value': pastValueStd,
+        'past_baseline': pastBaselineStd,
+        'combined_value': combinedValueStd,
+        'combined_baseline': combinedBaselineStd,
         // District name
         'district_name': districtName
       });
@@ -710,10 +719,11 @@ function addLegend(map, parameter, redThreshold, blueThreshold) {
     }
   });
 
-  var unit = parameter === 'precipitation' ? 'mm/day' : '°C/day';
+  var unit = parameter === 'precipitation' ? 'mm/day' : '°C';
+  var legendTitle = parameter === 'precipitation' ? '📊 Anomaly Legend (Per Day)' : '📊 Anomaly Legend';
   
   legend.add(ui.Label({
-    value: '📊 Anomaly Legend (Per Day)',
+    value: legendTitle,
     style: {fontWeight: 'bold', fontSize: '18px', margin: '0 0 12px 0'}
   }));
 
@@ -752,8 +762,9 @@ function addLegend(map, parameter, redThreshold, blueThreshold) {
   }));
   legend.add(labelPanel);
   
+  var unitNote = parameter === 'precipitation' ? 'Units: ' + unit + ' (anomaly per day)' : 'Units: ' + unit + ' (anomaly)';
   legend.add(ui.Label({
-    value: 'Units: ' + unit + ' (anomaly per day)',
+    value: unitNote,
     style: {fontSize: '12px', margin: '8px 0 0 0', color: '#666', fontStyle: 'italic'}
   }));
 
@@ -778,7 +789,7 @@ function addClickHandler(map, fc, parameter) {
       }
       
       var props = feature.properties;
-      var unit = parameter === 'precipitation' ? 'mm/day' : '°C/day';
+      var unit = parameter === 'precipitation' ? 'mm/day' : '°C';
       
       // Helper to format values
       var fmt = function(val) {
@@ -796,17 +807,21 @@ function addClickHandler(map, fc, parameter) {
       var forecastStatus = getAnomalyStatus(props.forecast_diff);
       var combinedStatus = getAnomalyStatus(props.combined_diff);
       
+      var perDayLabel = parameter === 'precipitation' ? ' (per day)' : '';
+      var forecastLabel = parameter === 'precipitation' ? ' (per day)' : '';
+      var combinedLabel = parameter === 'precipitation' ? ' (per day average)' : '';
+      
       var content = 
         '━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n' +
-        'Past 90 Days (per day):\n' +
+        'Past 90 Days' + perDayLabel + ':\n' +
         '   Observed:     ' + fmt(props.past_value) + ' ' + unit + '\n' +
         '   Baseline:     ' + fmt(props.past_baseline) + ' ' + unit + '\n' +
         '   Difference:  ' + fmtDiff(props.past_diff) + ' ' + unit + ' ' + pastStatus + '\n\n' +
-        '16-Day Forecast (per day):\n' +
+        '16-Day Forecast' + forecastLabel + ':\n' +
         '   Forecasted:  ' + fmt(props.forecast_value) + ' ' + unit + '\n' +
         '   Baseline:     ' + fmt(props.forecast_baseline) + ' ' + unit + '\n' +
         '   Difference:  ' + fmtDiff(props.forecast_diff) + ' ' + unit + ' ' + forecastStatus + '\n\n' +
-        'Combined (per day average):\n' +
+        'Combined' + combinedLabel + ':\n' +
         '   Value:         ' + fmt(props.combined_value) + ' ' + unit + '\n' +
         '   Baseline:     ' + fmt(props.combined_baseline) + ' ' + unit + '\n' +
         '   Difference:  ' + fmtDiff(props.combined_diff) + ' ' + unit + ' ' + combinedStatus + '\n' +
